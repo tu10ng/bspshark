@@ -38,6 +38,10 @@ make lint           # 代码检查
 make db-migrate     # 数据库迁移
 ```
 
+## 重要约定
+
+- **cargo 命令必须加 `-j 6`** 限制并行编译任务数（如 `cargo build -j 6`、`cargo test -j 6`）
+
 ## 架构决策
 
 - **工具执行**: 采用 SSE (Server-Sent Events) 实时流式输出

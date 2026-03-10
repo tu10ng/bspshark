@@ -9,7 +9,7 @@ dev-frontend:
 	cd frontend && pnpm dev
 
 dev-backend:
-	cd backend && cargo run
+	cd backend && cargo run -j 6
 
 # Build
 build: build-frontend build-backend
@@ -18,7 +18,7 @@ build-frontend:
 	cd frontend && pnpm build
 
 build-backend:
-	cd backend && cargo build --release
+	cd backend && cargo build -j 6 --release
 
 # Test
 test: test-frontend test-backend
@@ -27,7 +27,7 @@ test-frontend:
 	cd frontend && pnpm test
 
 test-backend:
-	cd backend && cargo test
+	cd backend && cargo test -j 6
 
 # Lint
 lint: lint-frontend lint-backend
@@ -36,7 +36,7 @@ lint-frontend:
 	cd frontend && pnpm lint
 
 lint-backend:
-	cd backend && cargo clippy -- -D warnings
+	cd backend && cargo clippy -j 6 -- -D warnings
 
 # Database
 db-migrate:

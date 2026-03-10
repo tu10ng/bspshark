@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, BookOpen, Wrench } from "lucide-react";
+import { LayoutDashboard, BookOpen, Wrench, Network, AlertTriangle, ClipboardList } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -15,6 +15,9 @@ const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Wiki", url: "/wiki", icon: BookOpen },
   { title: "Tools", url: "/tools", icon: Wrench },
+  { title: "知识树", url: "/knowledge", icon: Network },
+  { title: "坑", url: "/pitfalls", icon: AlertTriangle },
+  { title: "任务", url: "/tasks", icon: ClipboardList },
 ];
 
 export function NavMain() {

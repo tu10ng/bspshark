@@ -14,21 +14,31 @@
 
 ```
 bspshark/
+├── .env               # 环境变量（DATABASE_URL, BACKEND_PORT 等）
 ├── frontend/          # Next.js 前端
 │   ├── src/app/       # App Router 页面
-│   │   └── (app)/     # 带侧边栏的路由组 (/, /wiki, /tools)
+│   │   └── (app)/     # 带侧边栏的路由组 (/, /wiki, /tools, /knowledge, /pitfalls, /tasks)
 │   ├── src/components/ # UI 组件
 │   │   ├── ui/        # shadcn/ui 组件 (CLI 管理)
 │   │   ├── layout/    # 布局组件 (sidebar, header, nav)
 │   │   ├── dashboard/ # Dashboard 组件
 │   │   ├── wiki/      # Wiki 组件
-│   │   └── tools/     # Tools 组件
+│   │   ├── tools/     # Tools 组件
+│   │   ├── knowledge/ # 知识树组件 (tree-flow, node-form 等)
+│   │   ├── pitfalls/  # 坑组件
+│   │   └── tasks/     # 任务组件
 │   ├── src/lib/       # 工具函数 (utils, api, types)
 │   └── src/hooks/     # 自定义 Hooks (use-sse, use-debounce)
 ├── backend/           # Rust 后端
-│   ├── src/           # 源码
+│   ├── src/
+│   │   ├── main.rs    # 入口 + 服务器配置
+│   │   ├── lib.rs     # 路由注册
+│   │   ├── db.rs      # SqlitePool 初始化 + 迁移
+│   │   ├── error.rs   # AppError 枚举
+│   │   ├── models/    # 数据模型 (knowledge_tree, pitfall, task)
+│   │   └── handlers/  # HTTP 处理器 (knowledge_tree, tree_node, pitfall, task)
 │   ├── tests/         # 集成测试
-│   ├── migrations/    # SQL 迁移
+│   ├── migrations/    # SQL 迁移 (001_initial_schema, 002_knowledge_system)
 │   └── tools/         # 工具脚本 (python/, java/, bash/)
 └── Makefile           # 统一命令入口
 ```
@@ -48,6 +58,8 @@ make db-migrate     # 数据库迁移
 ## 重要约定
 
 - **cargo 命令必须加 `-j 6`** 限制并行编译任务数（如 `cargo build -j 6`、`cargo test -j 6`）
+- **`.env` 在项目根目录**，后端 `main.rs` 会先找 `backend/.env`，再找 `../.env`（项目根）。`DATABASE_URL` 路径相对于 `backend/` 目录（因为 `cargo run` 在该目录执行），例如 `sqlite://bspshark.db` 对应 `backend/bspshark.db`
+- **Button + Link 必须加 `nativeButton={false}`**：base-ui 的 Button 默认 `nativeButton=true`，当用 `render={<Link>}` 渲染为 `<a>` 标签时必须设置 `nativeButton={false}`，否则会报 console error
 
 ## 架构决策
 
@@ -59,7 +71,27 @@ make db-migrate     # 数据库迁移
 - **前端路由**: `(app)` 路由组包裹带侧边栏页面，不影响 URL
 - **主题切换**: root layout 内联 script 读 localStorage，无额外依赖
 - **URL 驱动过滤**: 搜索/筛选用 URL searchParams，支持 SSR 和可分享链接
-- **shadcn/ui 风格**: `base-nova`，组件多态用 `render` prop（非 `asChild`）
+- **shadcn/ui 风格**: `base-nova`，组件多态用 `render` prop（非 `asChild`）；Button 渲染非 `<button>` 元素时需加 `nativeButton={false}`
+
+## 知识管理系统
+
+### 核心设计思想
+
+- **全局知识树**: 以树形结构表示业务流程，主干是正常时序流程，分支是坑（错误）和异常场景
+- **坑是独立实体**: 坑独立存储，被多棵树的节点引用（多对多）。修改坑时所有引用处自动同步
+- **坑的生命周期**: `active` → `resolved`（已修复）/ `transformed`（变成了另一个坑），变更时附带说明
+- **自由嵌套**: 树节点不限层级，任何节点可以有子节点
+- **任务引用知识树**: 组长派任务时引用知识树节点，系统根据模块自动识别相关的坑
+- **归档材料**: 任务可附加设计文档、串讲视频等链接（只存 URL，不做文件上传）
+
+### 关键约束
+
+- **树节点排序**: `sort_order` 整数字段控制兄弟节点顺序
+- **坑的搜索**: 使用 LIKE 模糊搜索（title/description/tags），FTS5 虚拟表保留用于未来优化
+- **流程图可视化**: 使用 React Flow (`@xyflow/react`) + dagre 自动布局，只读展示 + 点击查看详情，编辑通过表单完成
+- **三种节点类型**: `step`（流程步骤）、`pitfall_ref`（坑引用）、`exception`（异常场景），各有不同视觉样式
+- **自动识别坑**: 创建任务时根据 modules 字段匹配 knowledge_trees → tree_nodes → pitfalls
+- **级联删除**: 所有关联表 ON DELETE CASCADE
 
 ## 测试策略
 

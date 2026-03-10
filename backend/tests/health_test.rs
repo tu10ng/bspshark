@@ -4,7 +4,7 @@ use actix_web::test;
 
 #[actix_rt::test]
 async fn health_returns_200() {
-    let app = common::spawn_test_app().await;
+    let (app, _pool) = common::spawn_test_app().await;
     let req = test::TestRequest::get().uri("/api/v1/health").to_request();
     let resp = test::call_service(&app, req).await;
 

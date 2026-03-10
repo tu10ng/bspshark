@@ -36,6 +36,7 @@ export function QuickTools() {
               key={group.language}
               variant="ghost"
               className="w-full justify-start"
+              nativeButton={false}
               render={<Link href={group.href} />}
             >
               <span

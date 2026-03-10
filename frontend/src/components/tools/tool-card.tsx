@@ -28,7 +28,7 @@ export function ToolCard({ tool }: { tool: Tool }) {
         <p className="text-muted-foreground line-clamp-2 text-sm">
           {tool.description}
         </p>
-        <Button size="sm" render={<Link href={`/tools/${tool.id}`} />}>
+        <Button size="sm" nativeButton={false} render={<Link href={`/tools/${tool.id}`} />}>
           <Play className="size-3" />
           运行
         </Button>

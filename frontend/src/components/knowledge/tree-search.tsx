@@ -10,9 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const modules = ["全部", "auth", "user", "billing", "order", "product"];
+interface TreeSearchProps {
+  modules: string[];
+}
 
-export function TreeSearch() {
+export function TreeSearch({ modules }: TreeSearchProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
@@ -36,6 +38,10 @@ export function TreeSearch() {
     [router, startTransition]
   );
 
+  if (modules.length === 0) {
+    return null;
+  }
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row">
       <Select
@@ -46,9 +52,10 @@ export function TreeSearch() {
           <SelectValue placeholder="业务模块" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="全部">全部模块</SelectItem>
           {modules.map((m) => (
             <SelectItem key={m} value={m}>
-              {m === "全部" ? "全部模块" : m}
+              {m}
             </SelectItem>
           ))}
         </SelectContent>

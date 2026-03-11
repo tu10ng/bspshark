@@ -232,7 +232,7 @@ export function TreeFlow({
 
   if (nodes.length === 0) {
     return (
-      <div className="flex h-[500px] items-center justify-center rounded-lg border">
+      <div className="flex h-full items-center justify-center rounded-lg border">
         <p className="text-muted-foreground text-sm">暂无节点，请添加流程步骤</p>
       </div>
     );
@@ -240,7 +240,7 @@ export function TreeFlow({
 
   return (
     <>
-      <div className="relative h-[calc(100vh-12rem)] min-h-[500px] rounded-lg border">
+      <div className="relative h-full min-h-[500px]">
         <ReactFlow
           nodes={nodes}
           edges={edges}

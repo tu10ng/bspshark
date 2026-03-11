@@ -1,13 +1,17 @@
-import { Suspense } from "react";
-import { TreeSearch } from "@/components/knowledge/tree-search";
-import { TreeList, TreeListSkeleton } from "@/components/knowledge/tree-list";
-import { TreeForm } from "@/components/knowledge/tree-form";
-import { getKnowledgeTrees } from "@/lib/api";
+import { TreeListPanel } from "@/components/knowledge/tree-list-panel";
+import { TreeDetailHeader } from "@/components/knowledge/tree-detail-header";
+import { TreeFlow } from "@/components/knowledge/tree-flow";
+import { NodeForm } from "@/components/knowledge/node-form";
+import {
+  getKnowledgeTrees,
+  getKnowledgeTree,
+  getTreeNodes,
+} from "@/lib/api";
 
 export default async function KnowledgePage({
   searchParams,
 }: {
-  searchParams: Promise<{ module?: string }>;
+  searchParams: Promise<{ module?: string; tree?: string }>;
 }) {
   const params = await searchParams;
   const trees = await getKnowledgeTrees({
@@ -18,23 +22,51 @@ export default async function KnowledgePage({
     ...new Set(trees.map((t) => t.module).filter(Boolean)),
   ] as string[];
 
+  const selectedTreeId = params.tree;
+  let selectedTree = null;
+  let treeNodes = null;
+
+  if (selectedTreeId) {
+    try {
+      [selectedTree, treeNodes] = await Promise.all([
+        getKnowledgeTree(selectedTreeId),
+        getTreeNodes(selectedTreeId),
+      ]);
+    } catch {
+      // Tree not found or deleted — fall through to empty state
+    }
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">知识树</h1>
-          <p className="text-muted-foreground">业务流程知识库</p>
-        </div>
-        <TreeForm mode="create" />
+    <div className="-m-4 flex h-[calc(100vh-3.5rem)] md:-m-6">
+      <div className="w-72 shrink-0 border-r">
+        <TreeListPanel
+          trees={trees}
+          modules={modules}
+          selectedTreeId={selectedTreeId}
+        />
       </div>
-
-      <Suspense>
-        <TreeSearch modules={modules} />
-      </Suspense>
-
-      <Suspense fallback={<TreeListSkeleton />}>
-        <TreeList trees={trees} />
-      </Suspense>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {selectedTree && treeNodes ? (
+          <>
+            <div className="flex items-start justify-between border-b px-6 py-4">
+              <TreeDetailHeader tree={selectedTree} treeId={selectedTreeId!} />
+              <NodeForm treeId={selectedTreeId!} parentNodes={treeNodes} />
+            </div>
+            <div className="flex-1">
+              <TreeFlow treeNodes={treeNodes} treeId={selectedTreeId!} />
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <p className="text-muted-foreground text-sm">
+              {trees.length > 0
+                ? "选择左侧知识树查看流程图"
+                : "创建一棵知识树开始使用"}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -31,6 +31,8 @@ export function TreeSearch({ modules }: TreeSearchProps) {
           params.set(key, value);
         }
       }
+      // Clear tree selection when changing filters
+      params.delete("tree");
       startTransition(() => {
         router.push(`/knowledge?${params.toString()}`);
       });

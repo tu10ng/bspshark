@@ -93,6 +93,23 @@ make db-migrate     # 数据库迁移
 - **自动识别坑**: 创建任务时根据 modules 字段匹配 knowledge_trees → tree_nodes → pitfalls
 - **级联删除**: 所有关联表 ON DELETE CASCADE
 
+## 示例数据
+
+`populate_knowledge.sh` 脚本通过 curl 调用后端 API 批量填充 Linux 内核知识示例数据：
+
+- **25 个坑**: 覆盖 Linux 启动、SATA、存储、内核恢复四大主题
+- **4 棵知识树**: Linux启动流程(`linux-boot`)、SATA控制器驱动(`sata`)、内核自动恢复(`kernel-recovery`)、磁盘挂载与文件系统(`storage`)
+- **~60 个树节点**: 每棵树含主干步骤 + 异常/坑引用子节点
+- **24 条坑-节点关联**: 含跨树引用（P6 fstab 同时被 Tree1 和 Tree4 引用）
+- **3 个任务 + 5 个工件**: 含跨模块任务（Task3 跨 storage + kernel-recovery）
+
+```bash
+# 填充数据（需后端运行在 localhost:8080）
+bash populate_knowledge.sh
+```
+
+**注意**: `task_artifacts.artifact_type` 有 CHECK 约束，仅允许 `design_doc`、`arch_review_video`、`test_review_video`、`other`
+
 ## 测试策略
 
 - **前端**: vitest + @testing-library/react，测试文件放 `src/__tests__/` 或 `*.test.tsx`

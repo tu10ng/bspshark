@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
   type Node,
   type Edge,
   type NodeTypes,
@@ -56,20 +58,22 @@ interface FlowNodeData {
   groupLabel?: string;
   /** lane label for swimlane view */
   laneLabel?: string;
+  /** ID of the expanded parent that produced this node */
+  parentGroupId?: string;
   [key: string]: unknown;
 }
 
 // ─── Layout constants ──────────────────────────────────────────────
 
-const NODE_WIDTH = 220;
-const NODE_HEIGHT = 80;
-const H_GAP = 60;
-const BRANCH_OFFSET_Y = 120;
-const BRANCH_V_GAP = 20;
-const GROUP_PADDING = 30;
-const GROUP_HEADER_HEIGHT = 36;
-const LANE_GAP_Y = 40;
-const LANE_LABEL_WIDTH = 100;
+const NODE_WIDTH = 280;
+const NODE_HEIGHT = 96;
+const H_GAP = 80;
+const BRANCH_OFFSET_Y = 140;
+const BRANCH_V_GAP = 28;
+const GROUP_PADDING = 40;
+const GROUP_HEADER_HEIGHT = 44;
+const LANE_GAP_Y = 56;
+const LANE_LABEL_WIDTH = 120;
 
 // ─── Custom edge ───────────────────────────────────────────────────
 
@@ -96,8 +100,8 @@ function StepNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-lg border-2 border-blue-400 bg-blue-50 px-4 py-2 dark:bg-blue-950",
-        "min-w-[200px] max-w-[260px]",
+        "rounded-xl border-2 border-blue-400 bg-blue-50 px-5 py-3 dark:bg-blue-950",
+        "min-w-[260px] max-w-[320px]",
         selected && "ring-2 ring-blue-500 ring-offset-2"
       )}
     >
@@ -106,22 +110,22 @@ function StepNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
         position={Position.Left}
         className="!bg-blue-400"
       />
-      <div className="flex items-center gap-2">
-        <GitBranch className="size-4 shrink-0 text-blue-500" />
-        <span className="line-clamp-2 text-sm font-medium">{data.label}</span>
+      <div className="flex items-center gap-2.5">
+        <GitBranch className="size-5 shrink-0 text-blue-500" />
+        <span className="line-clamp-2 text-[15px] font-medium leading-snug">{data.label}</span>
         {data.expandable && (
           <span className="ml-auto text-blue-400">
             {data.expanded ? (
-              <ChevronDown className="size-4" />
+              <ChevronDown className="size-5" />
             ) : (
-              <ChevronRight className="size-4" />
+              <ChevronRight className="size-5" />
             )}
           </span>
         )}
       </div>
       {data.pitfalls.length > 0 && (
-        <div className="mt-1 flex gap-1">
-          <Badge variant="secondary" className="text-[10px]">
+        <div className="mt-1.5 flex gap-1">
+          <Badge variant="secondary" className="text-xs">
             {data.pitfalls.length} 个坑
           </Badge>
         </div>
@@ -147,8 +151,8 @@ function CollapsedNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-lg border-2 border-dashed border-slate-400 bg-slate-50 px-4 py-2 dark:bg-slate-900",
-        "min-w-[200px] max-w-[260px] cursor-pointer",
+        "rounded-xl border-2 border-dashed border-slate-400 bg-slate-50 px-5 py-3 dark:bg-slate-900",
+        "min-w-[260px] max-w-[320px] cursor-pointer",
         selected && "ring-2 ring-slate-500 ring-offset-2"
       )}
     >
@@ -157,19 +161,19 @@ function CollapsedNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
         position={Position.Left}
         className="!bg-slate-400"
       />
-      <div className="flex items-center gap-2">
-        <Layers className="size-4 shrink-0 text-slate-500" />
-        <span className="line-clamp-2 text-sm font-medium">{data.label}</span>
-        <ChevronRight className="ml-auto size-4 text-slate-400" />
+      <div className="flex items-center gap-2.5">
+        <Layers className="size-5 shrink-0 text-slate-500" />
+        <span className="line-clamp-2 text-[15px] font-medium leading-snug">{data.label}</span>
+        <ChevronRight className="ml-auto size-5 text-slate-400" />
       </div>
-      <div className="mt-1 flex gap-1">
+      <div className="mt-1.5 flex gap-1">
         {(data.childStepCount ?? 0) > 0 && (
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-xs">
             {data.childStepCount} 个子知识
           </Badge>
         )}
         {(data.childBranchCount ?? 0) > 0 && (
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-xs">
             {data.childBranchCount} 个坑/异常
           </Badge>
         )}
@@ -194,8 +198,8 @@ function ExceptionNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-lg border-2 border-orange-400 bg-orange-50 px-4 py-2 dark:bg-orange-950",
-        "min-w-[200px] max-w-[260px]",
+        "rounded-xl border-2 border-orange-400 bg-orange-50 px-5 py-3 dark:bg-orange-950",
+        "min-w-[260px] max-w-[320px]",
         selected && "ring-2 ring-orange-500 ring-offset-2"
       )}
     >
@@ -204,9 +208,9 @@ function ExceptionNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
         position={Position.Top}
         className="!bg-orange-400"
       />
-      <div className="flex items-center gap-2">
-        <AlertTriangle className="size-4 shrink-0 text-orange-500" />
-        <span className="line-clamp-2 text-sm font-medium">{data.label}</span>
+      <div className="flex items-center gap-2.5">
+        <AlertTriangle className="size-5 shrink-0 text-orange-500" />
+        <span className="line-clamp-2 text-[15px] font-medium leading-snug">{data.label}</span>
       </div>
       <Handle
         type="source"
@@ -222,15 +226,15 @@ function PitfallRefNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-lg border-2 border-red-400 bg-red-50 px-4 py-2 dark:bg-red-950",
-        "min-w-[200px] max-w-[260px]",
+        "rounded-xl border-2 border-red-400 bg-red-50 px-5 py-3 dark:bg-red-950",
+        "min-w-[260px] max-w-[320px]",
         selected && "ring-2 ring-red-500 ring-offset-2"
       )}
     >
       <Handle type="target" position={Position.Top} className="!bg-red-400" />
-      <div className="flex items-center gap-2">
-        <AlertTriangle className="size-4 shrink-0 text-red-500" />
-        <span className="line-clamp-2 text-sm font-medium">{data.label}</span>
+      <div className="flex items-center gap-2.5">
+        <AlertTriangle className="size-5 shrink-0 text-red-500" />
+        <span className="line-clamp-2 text-[15px] font-medium leading-snug">{data.label}</span>
       </div>
       <Handle
         type="source"
@@ -246,12 +250,12 @@ function PitfallRefNode({ data, selected }: NodeProps<Node<FlowNodeData>>) {
 function GroupBorderNode({ data }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div className="h-full w-full rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20">
-      <div className="flex h-8 cursor-pointer items-center gap-2 rounded-t-xl border-b border-dashed border-blue-200 bg-blue-50/50 px-3 hover:bg-blue-100/60 dark:border-blue-800 dark:bg-blue-950/40 dark:hover:bg-blue-900/40">
-        <ChevronDown className="size-3.5 text-blue-400" />
-        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+      <div className="flex h-10 cursor-pointer items-center gap-2.5 rounded-t-xl border-b border-dashed border-blue-200 bg-blue-50/50 px-4 hover:bg-blue-100/60 dark:border-blue-800 dark:bg-blue-950/40 dark:hover:bg-blue-900/40">
+        <ChevronDown className="size-4 text-blue-400" />
+        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
           {data.groupLabel}
         </span>
-        <span className="ml-auto text-[10px] text-blue-400">点击收起</span>
+        <span className="ml-auto text-xs text-blue-400">点击收起</span>
       </div>
     </div>
   );
@@ -261,7 +265,7 @@ function GroupBorderNode({ data }: NodeProps<Node<FlowNodeData>>) {
 function LaneLabelNode({ data }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div className="flex h-full items-center justify-center rounded-md border border-purple-200 bg-purple-50 px-2 dark:border-purple-800 dark:bg-purple-950">
-      <span className="text-xs font-medium text-purple-700 dark:text-purple-300">
+      <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
         {data.laneLabel}
       </span>
     </div>
@@ -462,6 +466,7 @@ function buildExpandableFlow(
           originalId: item.node.id,
           childStepCount: stepChildren.length,
           childBranchCount: branchChildren.length,
+          parentGroupId: item.parentGroupId,
         },
       });
 
@@ -477,6 +482,7 @@ function buildExpandableFlow(
             nodeType: branch.node_type,
             description: branch.description,
             pitfalls: branch.pitfalls,
+            parentGroupId: item.parentGroupId,
           },
         });
         flowEdges.push({
@@ -488,7 +494,7 @@ function buildExpandableFlow(
           animated: branch.node_type === "exception",
           style: {
             stroke: branch.node_type === "exception" ? "#f97316" : "#ef4444",
-            strokeWidth: 1.5,
+            strokeWidth: 2,
             strokeDasharray: "6 3",
           },
         });
@@ -503,7 +509,7 @@ function buildExpandableFlow(
           target: item.node.id,
           sourceHandle: "right",
           type: "smoothstep",
-          style: { stroke: "#3b82f6", strokeWidth: 2 },
+          style: { stroke: "#3b82f6", strokeWidth: 2.5 },
         });
       }
 
@@ -544,6 +550,7 @@ function buildExpandableFlow(
             description: null,
             pitfalls: [],
             laneLabel: instance.name,
+            parentGroupId,
           },
           style: { width: LANE_LABEL_WIDTH, height: NODE_HEIGHT },
           selectable: false,
@@ -580,6 +587,7 @@ function buildExpandableFlow(
               originalId: laneNode.id,
               childStepCount: stepChildren.length,
               childBranchCount: branchChildren.length,
+              parentGroupId,
             },
           });
 
@@ -596,6 +604,7 @@ function buildExpandableFlow(
                 nodeType: branch.node_type,
                 description: branch.description,
                 pitfalls: branch.pitfalls,
+                parentGroupId,
               },
             });
             flowEdges.push({
@@ -608,7 +617,7 @@ function buildExpandableFlow(
               style: {
                 stroke:
                   branch.node_type === "exception" ? "#f97316" : "#ef4444",
-                strokeWidth: 1.5,
+                strokeWidth: 2,
                 strokeDasharray: "6 3",
               },
             });
@@ -623,7 +632,7 @@ function buildExpandableFlow(
               target: laneNodeId,
               sourceHandle: "right",
               type: "smoothstep",
-              style: { stroke: "#3b82f6", strokeWidth: 2 },
+              style: { stroke: "#3b82f6", strokeWidth: 2.5 },
             });
           }
 
@@ -651,7 +660,7 @@ function buildExpandableFlow(
             target: firstId,
             sourceHandle: "right",
             type: "smoothstep",
-            style: { stroke: "#3b82f6", strokeWidth: 2 },
+            style: { stroke: "#3b82f6", strokeWidth: 2.5 },
           });
         }
       }
@@ -678,6 +687,7 @@ function buildExpandableFlow(
           pitfalls: [],
           groupLabel,
           originalId: parentGroupId,
+          parentGroupId,
         },
         style: {
           width: groupWidth,
@@ -755,6 +765,7 @@ function buildExpandableFlow(
         pitfalls: [],
         groupLabel,
         originalId: groupId,
+        parentGroupId: groupId,
       },
       style: {
         width: groupWidth,
@@ -791,7 +802,7 @@ function hasStepChildren(
   return node.children.some((c) => c.node_type === "step");
 }
 
-// ─── Main component ────────────────────────────────────────────────
+// ─── Main component (Provider wrapper) ──────────────────────────────
 
 export function TreeFlow({
   treeNodes,
@@ -800,13 +811,34 @@ export function TreeFlow({
   treeNodes: TreeNodeNested[];
   treeId: string;
 }) {
+  return (
+    <ReactFlowProvider>
+      <TreeFlowInner treeNodes={treeNodes} treeId={treeId} />
+    </ReactFlowProvider>
+  );
+}
+
+// ─── Inner component (uses useReactFlow) ────────────────────────────
+
+function TreeFlowInner({
+  treeNodes,
+  treeId,
+}: {
+  treeNodes: TreeNodeNested[];
+  treeId: string;
+}) {
   const router = useRouter();
+  const { fitView, setNodes, setEdges } = useReactFlow();
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
     () => new Set()
   );
   const [instancesMap, setInstancesMap] = useState<
     Map<string, KnowledgeInstance[]>
   >(() => new Map());
+
+  // Track the last expanded/collapsed action for targeted fitView
+  const lastExpandedRef = useRef<string | null>(null);
+  const lastCollapsedRef = useRef<string | null>(null);
 
   // Fetch instances for expanded nodes that have them
   useEffect(() => {
@@ -848,16 +880,29 @@ export function TreeFlow({
   );
 
   // Sync layout when expandedNodes or treeNodes change
-  // useNodesState/useEdgesState initialize from the first render only,
-  // so we need to reinitialize when the layout changes.
-  const layoutKey = useMemo(
-    () =>
-      JSON.stringify([
-        [...expandedNodes].sort(),
-        [...instancesMap.keys()].sort(),
-      ]),
-    [expandedNodes, instancesMap]
-  );
+  useEffect(() => {
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [layoutedNodes, layoutedEdges, setNodes, setEdges]);
+
+  // After nodes update, perform targeted fitView
+  useEffect(() => {
+    if (nodes.length === 0) return;
+
+    // Small delay to let React Flow measure the new nodes
+    const timer = setTimeout(() => {
+      const expandedId = lastExpandedRef.current;
+      const collapsedId = lastCollapsedRef.current;
+
+      if (expandedId) {
+        lastExpandedRef.current = null;
+      } else if (collapsedId) {
+        lastCollapsedRef.current = null;
+      }
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [nodes, fitView]);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node<FlowNodeData>) => {
@@ -868,6 +913,7 @@ export function TreeFlow({
       if (node.type === "group_border") {
         const groupNodeId = node.data.originalId as string;
         if (groupNodeId) {
+          lastCollapsedRef.current = groupNodeId;
           setExpandedNodes((prev) => {
             const next = new Set(prev);
             collapseDescendants(treeNodes, groupNodeId, next);
@@ -886,9 +932,11 @@ export function TreeFlow({
         setExpandedNodes((prev) => {
           const next = new Set(prev);
           if (next.has(originalId)) {
+            lastCollapsedRef.current = originalId;
             collapseDescendants(treeNodes, originalId, next);
             next.delete(originalId);
           } else {
+            lastExpandedRef.current = originalId;
             next.add(originalId);
           }
           return next;
@@ -927,9 +975,10 @@ export function TreeFlow({
     <>
       <div className="relative h-full min-h-[500px]">
         <ReactFlow
-          key={layoutKey}
-          nodes={layoutedNodes}
-          edges={layoutedEdges}
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodeClick={onNodeClick}

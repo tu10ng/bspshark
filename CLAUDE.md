@@ -98,13 +98,13 @@ make db-migrate     # 数据库迁移
 
 ## 示例数据
 
-`populate_knowledge.sh` 脚本通过 curl 调用后端 API 批量填充 Linux 内核知识示例数据：
+`populate_knowledge.sh` 脚本通过 curl 调用后端 API 批量填充 Linux 存储 I/O 全链路知识示例数据：
 
-- **25 个坑**: 覆盖 Linux 启动、SATA、存储、内核恢复四大主题
-- **1 棵统一知识树**: "Linux系统全栈知识树"(`linux-system`)，根级主干按时序串联四大模块：启动流程 → SATA驱动 → 磁盘挂载 → 内核恢复
-- **~64 个树节点**: 4 个根级模块节点 + 每个模块下含主干步骤 + 异常/坑引用子节点
-- **24 条坑-节点关联**: 含跨模块引用（P6 fstab 同时被模块一和模块三引用）
-- **3 个任务 + 5 个工件**: 含跨模块任务（Task3 跨 storage + kernel-recovery）
+- **25 个坑**: 覆盖 Linux 启动、SATA、存储、运行时保障四大主题
+- **1 棵知识树**: "Linux存储I/O全链路知识树"(`linux-storage-io`)，12 个顶层节点按时序排列：固件启动 → GRUB → 内核解压 → do_initcalls(含SATA初始化) → initrd → switch_root → systemd → 块设备层 → 文件系统挂载 → 运行时I/O → SATA运行时机制 → 运行时保障机制
+- **~70 个树节点**: 12 个顶层节点 + 子节点（含 3 层嵌套如 EH > 恢复或放弃 > pitfall_ref）
+- **25 条坑-节点关联**: 含跨节点引用（P6 fstab 同时被 systemd 和文件系统挂载引用）
+- **3 个任务 + 5 个工件**: 任务 modules 统一为 `linux-storage-io`
 
 ```bash
 # 填充数据（需后端运行在 localhost:8080）

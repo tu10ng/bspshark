@@ -226,6 +226,150 @@ P25=$(create "$API/pitfalls" '{
 }')
 echo "P25=$P25 - kdump采集失败无法分析panic"
 
+P26=$(create "$API/pitfalls" '{
+  "title": "UEFI Secure Boot签名验证失败",
+  "description": "UEFI Secure Boot开启时，未签名或签名不匹配的bootloader/内核镜像被拒绝加载。常见于自编译内核未用MOK(Machine Owner Key)签名、或第三方驱动模块未签名导致加载失败。需通过mokutil注册密钥或在BIOS中关闭Secure Boot。",
+  "severity": "high",
+  "tags": ["uefi", "secure-boot", "firmware", "signing"]
+}')
+echo "P26=$P26 - UEFI Secure Boot签名验证失败"
+
+P27=$(create "$API/pitfalls" '{
+  "title": "BIOS中SATA模式配置为IDE/RAID",
+  "description": "BIOS中SATA控制器模式未设置为AHCI（而是IDE兼容模式或RAID模式），导致Linux内核加载ahci驱动时无法匹配PCI设备class code。IDE模式下性能大幅降低且不支持NCQ/热插拔，RAID模式需要特定的mdraid/dmraid驱动。",
+  "severity": "medium",
+  "tags": ["bios", "sata", "ahci", "ide", "raid"]
+}')
+echo "P27=$P27 - BIOS中SATA模式配置为IDE/RAID"
+
+P28=$(create "$API/pitfalls" '{
+  "title": "libata SAT翻译层命令不兼容",
+  "description": "libata的SCSI-ATA Translation(SAT)层将SCSI命令翻译为ATA命令时，某些厂商特定ATA命令或非标准SCSI扩展无法正确翻译，导致设备管理工具(hdparm/smartctl)返回错误或功能异常。常见于老旧PATA设备或特殊工业级SSD。",
+  "severity": "medium",
+  "tags": ["libata", "sat", "scsi", "ata", "compatibility"]
+}')
+echo "P28=$P28 - libata SAT翻译层命令不兼容"
+
+P29=$(create "$API/pitfalls" '{
+  "title": "IDENTIFY DEVICE返回数据异常",
+  "description": "SATA设备在IDENTIFY DEVICE命令返回的512字节数据中，关键字段（如扇区大小、NCQ队列深度、TRIM支持位）报告不准确或与实际能力不符。导致内核误判设备能力，如将4K扇区设备当作512B处理引发对齐问题，或启用设备实际不支持的NCQ深度。",
+  "severity": "medium",
+  "tags": ["sata", "identify-device", "firmware", "capability"]
+}')
+echo "P29=$P29 - IDENTIFY DEVICE返回数据异常"
+
+P30=$(create "$API/pitfalls" '{
+  "title": "GPT备份分区表损坏",
+  "description": "GPT分区方案在磁盘首尾各存一份分区表，当磁盘末尾区域出现坏道或被意外覆盖时，备份分区表损坏。gdisk/parted会报告backup GPT header corrupt警告。虽然主分区表正常时不影响使用，但失去了冗余保护，应及时用gdisk repair修复。",
+  "severity": "medium",
+  "tags": ["gpt", "partition", "corruption", "recovery"]
+}')
+echo "P30=$P30 - GPT备份分区表损坏"
+
+P31=$(create "$API/pitfalls" '{
+  "title": "blk-mq CPU亲和性配置不当",
+  "description": "blk-mq的硬件队列到CPU的映射(irq affinity)配置不合理，导致I/O请求集中在少数CPU核上处理，无法充分利用多核并行能力。在NUMA架构下，跨节点的队列分配还会引入额外延迟。需通过irqbalance或手动设置/proc/irq/*/smp_affinity优化。",
+  "severity": "low",
+  "tags": ["blk-mq", "cpu-affinity", "numa", "performance"]
+}')
+echo "P31=$P31 - blk-mq CPU亲和性配置不当"
+
+P32=$(create "$API/pitfalls" '{
+  "title": "文件系统magic number误识别",
+  "description": "blkid/mount在探测文件系统类型时，残留的旧文件系统superblock magic number导致误识别。例如在ext4分区上重新格式化为xfs后，若未wipefs清除旧签名，mount -t auto可能尝试用错误的文件系统类型挂载。应在格式化前执行wipefs -a清除所有签名。",
+  "severity": "low",
+  "tags": ["filesystem", "blkid", "magic-number", "wipefs"]
+}')
+echo "P32=$P32 - 文件系统magic number误识别"
+
+P33=$(create "$API/pitfalls" '{
+  "title": "umount时busy设备无法卸载",
+  "description": "umount报告target is busy，因为有进程的工作目录在挂载点内、文件被打开、或存在loop设备/bind mount引用。lsof/fuser可定位占用进程，但在容器环境中mount namespace隔离使排查复杂化。umount -l(lazy unmount)可延迟卸载但可能导致数据不一致。",
+  "severity": "medium",
+  "tags": ["umount", "busy", "filesystem", "mount-namespace"]
+}')
+echo "P33=$P33 - umount时busy设备无法卸载"
+
+P34=$(create "$API/pitfalls" '{
+  "title": "DFX调试开启后性能严重下降",
+  "description": "开启libata动态调试(echo 1 > /sys/module/libata/parameters/*)或blktrace全量跟踪后，由于printk输出和trace buffer写入的开销，I/O延迟显著增加甚至触发命令超时。在生产环境调试时应限制跟踪范围和时长，优先使用eBPF等低开销工具。",
+  "severity": "low",
+  "tags": ["dfx", "debug", "performance", "blktrace", "libata"]
+}')
+echo "P34=$P34 - DFX调试开启后性能严重下降"
+
+P35=$(create "$API/pitfalls" '{
+  "title": "EH错误分类误判导致不必要reset",
+  "description": "libata EH在分析错误时，将可恢复的瞬态错误（如偶发CRC错误）误分类为需要hard reset的严重错误，导致不必要的端口重置和I/O中断。频繁的误判reset会显著影响I/O吞吐量和延迟。需要微调ata_eh_analyze_tf()的分类逻辑。",
+  "severity": "medium",
+  "tags": ["libata", "error-handler", "classification", "reset"]
+}')
+echo "P35=$P35 - EH错误分类误判导致不必要reset"
+
+P36=$(create "$API/pitfalls" '{
+  "title": "EH Reset后设备参数丢失需重配",
+  "description": "SATA设备在EH hard reset后，之前通过SET FEATURES命令配置的参数（如写缓存开关、APM级别、读lookahead等）被设备复位为出厂默认值。libata的ata_dev_revalidate()虽会重新读取IDENTIFY信息，但部分运行时配置未被恢复，导致性能退化或行为改变。",
+  "severity": "medium",
+  "tags": ["libata", "error-handler", "reset", "device-config"]
+}')
+echo "P36=$P36 - EH Reset后设备参数丢失需重配"
+
+P37=$(create "$API/pitfalls" '{
+  "title": "PCIe AER中断风暴",
+  "description": "PCIe设备持续报告Correctable Error（如Bad TLP、Receiver Error），AER驱动频繁触发中断处理和日志记录，占用大量CPU时间形成中断风暴。根因通常是PCIe链路信号质量问题或设备固件bug。需通过setpci屏蔽特定错误位或降低PCIe链路速率缓解。",
+  "severity": "high",
+  "tags": ["pcie", "aer", "interrupt-storm", "signal-integrity"]
+}')
+echo "P37=$P37 - PCIe AER中断风暴"
+
+P38=$(create "$API/pitfalls" '{
+  "title": "UEFI固件PCI资源分配冲突",
+  "description": "UEFI固件在PCI枚举阶段为设备分配BAR空间时发生冲突（MMIO地址重叠、I/O端口不足），导致部分PCI设备的BAR未被正确映射。Linux内核pci_assign_resource()尝试重新分配但可能因地址空间碎片化失败。常见于多GPU或大量PCIe扩展卡场景。",
+  "severity": "medium",
+  "tags": ["uefi", "pci", "bar", "resource-conflict"]
+}')
+echo "P38=$P38 - UEFI固件PCI资源分配冲突"
+
+P39=$(create "$API/pitfalls" '{
+  "title": "libata EH与SCSI EH竞争导致死锁",
+  "description": "当SATA命令超时同时触发libata EH和SCSI层的错误恢复时，两个EH子系统可能因锁竞争（ap->lock vs shost->host_lock）产生死锁。表现为I/O完全卡死，需SysRq或硬重启恢复。内核5.15+已修复大部分竞争场景，但自定义SCSI命令仍可能触发。",
+  "severity": "high",
+  "tags": ["libata", "scsi", "error-handler", "deadlock"]
+}')
+echo "P39=$P39 - libata EH与SCSI EH竞争导致死锁"
+
+P40=$(create "$API/pitfalls" '{
+  "title": "Page Cache回写风暴导致I/O延迟飙升",
+  "description": "大量写入操作导致Page Cache脏页积累超过dirty_ratio阈值，触发同步回写(writeback)，所有写入进程被阻塞等待脏页刷盘。在慢速存储(HDD/网络存储)上尤为严重，表现为周期性I/O延迟尖刺。需调整dirty_ratio/dirty_background_ratio或使用cgroup io限速。",
+  "severity": "medium",
+  "tags": ["page-cache", "writeback", "dirty-ratio", "io-latency"]
+}')
+echo "P40=$P40 - Page Cache回写风暴导致I/O延迟飙升"
+
+P41=$(create "$API/pitfalls" '{
+  "title": "TRIM/Discard命令导致SSD卡顿",
+  "description": "对SSD执行大量discard操作（如fstrim或mount -o discard）时，某些SSD固件处理TRIM命令需要较长时间（数百毫秒），期间I/O响应延迟显著增加。建议使用fstrim定时任务替代实时discard，并通过ionice限制fstrim优先级。",
+  "severity": "medium",
+  "tags": ["ssd", "trim", "discard", "io-latency", "firmware"]
+}')
+echo "P41=$P41 - TRIM/Discard命令导致SSD卡顿"
+
+P42=$(create "$API/pitfalls" '{
+  "title": "内核decompression失败silent hang",
+  "description": "压缩内核镜像(vmlinuz)在自解压阶段失败（如镜像损坏、解压算法不匹配、或解压目标地址与已用内存冲突），系统直接挂起(hang)无任何输出。由于此时console尚未初始化，无法通过串口看到任何错误信息。需通过未压缩内核(vmlinux)或earlycon参数排查。",
+  "severity": "high",
+  "tags": ["kernel", "decompression", "boot", "hang", "silent-failure"]
+}')
+echo "P42=$P42 - 内核decompression失败silent hang"
+
+P43=$(create "$API/pitfalls" '{
+  "title": "systemd-udevd规则冲突导致设备节点异常",
+  "description": "多条udev规则同时匹配同一设备且定义了冲突的操作（如不同的NAME/SYMLINK/OWNER），导致设备节点权限错误、符号链接缺失或设备名不稳定。常见于自定义规则与发行版预装规则的优先级冲突。用udevadm test可模拟规则匹配结果进行排查。",
+  "severity": "medium",
+  "tags": ["systemd", "udev", "device-node", "rules-conflict"]
+}')
+echo "P43=$P43 - systemd-udevd规则冲突导致设备节点异常"
+
 echo ""
 echo "=== Phase 2: 创建知识树 ==="
 
@@ -252,6 +396,36 @@ N0=$(create "$API/tree-nodes" "{
   \"sort_order\": 0
 }")
 echo "N0=$N0 - 固件启动(BIOS/UEFI)"
+
+N0_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N0\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"UEFI Secure Boot签名验证失败\",
+  \"description\": \"Secure Boot开启时未签名的bootloader/内核被拒绝加载。\",
+  \"sort_order\": 0
+}")
+echo "  N0_PR1=$N0_PR1 - Secure Boot签名失败坑引用"
+
+N0_PR2=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N0\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"BIOS SATA模式配置为IDE/RAID\",
+  \"description\": \"SATA控制器未设为AHCI模式导致驱动不匹配或性能下降。\",
+  \"sort_order\": 1
+}")
+echo "  N0_PR2=$N0_PR2 - SATA模式配置坑引用"
+
+N0_EX1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N0\",
+  \"node_type\": \"exception\",
+  \"title\": \"UEFI PCI资源分配冲突\",
+  \"description\": \"固件PCI枚举时BAR空间冲突导致设备映射失败。\",
+  \"sort_order\": 2
+}")
+echo "  N0_EX1=$N0_EX1 - PCI资源冲突异常"
 
 # ═══════════════════════════════════════
 # so:1 GRUB2引导加载
@@ -413,6 +587,16 @@ N2_EX1=$(create "$API/tree-nodes" "{
 }")
 echo "  N2_EX1=$N2_EX1 - 启动阶段OOM异常"
 
+N2_EX2=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N2\",
+  \"node_type\": \"exception\",
+  \"title\": \"内核解压失败silent hang\",
+  \"description\": \"压缩内核自解压阶段失败，系统挂起无任何输出。\",
+  \"sort_order\": 1
+}")
+echo "  N2_EX2=$N2_EX2 - 内核解压失败异常"
+
 # ═══════════════════════════════════════
 # so:3 内核子系统初始化(do_initcalls) ★ SATA 初始化内联
 # ═══════════════════════════════════════
@@ -447,6 +631,16 @@ N3_S1=$(create "$API/tree-nodes" "{
   \"sort_order\": 1
 }")
 echo "  N3_S1=$N3_S1 - libata框架注册"
+
+N3_S1_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N3_S1\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"SAT翻译层命令不兼容\",
+  \"description\": \"SCSI-ATA Translation层无法正确翻译某些厂商特定命令。\",
+  \"sort_order\": 0
+}")
+echo "    N3_S1_PR1=$N3_S1_PR1 - SAT命令不兼容坑引用"
 
 N3_S2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
@@ -507,6 +701,16 @@ N3_S4=$(create "$API/tree-nodes" "{
   \"sort_order\": 4
 }")
 echo "  N3_S4=$N3_S4 - SATA设备识别"
+
+N3_S4_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N3_S4\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"IDENTIFY DEVICE返回数据异常\",
+  \"description\": \"设备IDENTIFY信息中关键字段报告不准确导致内核误判设备能力。\",
+  \"sort_order\": 0
+}")
+echo "    N3_S4_PR1=$N3_S4_PR1 - IDENTIFY数据异常坑引用"
 
 # ═══════════════════════════════════════
 # so:4 initrd/initramfs加载
@@ -600,6 +804,16 @@ N6_EX1=$(create "$API/tree-nodes" "{
 }")
 echo "  N6_EX1=$N6_EX1 - systemd循环依赖异常"
 
+N6_PR2=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N6\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"udevd规则冲突导致设备节点异常\",
+  \"description\": \"多条udev规则冲突导致设备节点权限错误或设备名不稳定。\",
+  \"sort_order\": 2
+}")
+echo "  N6_PR2=$N6_PR2 - udevd规则冲突坑引用"
+
 # ═══════════════════════════════════════
 # so:7 块设备层就绪 ★ 新增
 # ═══════════════════════════════════════
@@ -623,6 +837,16 @@ N7_S1=$(create "$API/tree-nodes" "{
   \"sort_order\": 0
 }")
 echo "  N7_S1=$N7_S1 - 分区表扫描"
+
+N7_S1_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N7_S1\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"GPT备份分区表损坏\",
+  \"description\": \"磁盘末尾的GPT备份分区表损坏，失去冗余保护。\",
+  \"sort_order\": 0
+}")
+echo "    N7_S1_PR1=$N7_S1_PR1 - GPT备份分区表坑引用"
 
 N7_S2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
@@ -654,6 +878,16 @@ N7_S3=$(create "$API/tree-nodes" "{
 }")
 echo "  N7_S3=$N7_S3 - bio提交与多队列分发"
 
+N7_S3_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N7_S3\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"blk-mq CPU亲和性配置不当\",
+  \"description\": \"硬件队列到CPU的映射不合理导致I/O无法充分并行。\",
+  \"sort_order\": 0
+}")
+echo "    N7_S3_PR1=$N7_S3_PR1 - blk-mq CPU亲和性坑引用"
+
 # ═══════════════════════════════════════
 # so:8 文件系统挂载
 # ═══════════════════════════════════════
@@ -677,6 +911,16 @@ N8_S1=$(create "$API/tree-nodes" "{
   \"sort_order\": 0
 }")
 echo "  N8_S1=$N8_S1 - 文件系统类型探测"
+
+N8_S1_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N8_S1\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"文件系统magic number误识别\",
+  \"description\": \"残留的旧superblock签名导致文件系统类型误判。\",
+  \"sort_order\": 0
+}")
+echo "    N8_S1_PR1=$N8_S1_PR1 - magic number误识别坑引用"
 
 N8_S2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
@@ -762,6 +1006,26 @@ N9_EX1=$(create "$API/tree-nodes" "{
 }")
 echo "  N9_EX1=$N9_EX1 - I/O错误FS离线异常"
 
+N9_PR2=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N9\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"Page Cache回写风暴导致I/O延迟飙升\",
+  \"description\": \"脏页积累超阈值触发同步回写，写入进程被阻塞。\",
+  \"sort_order\": 3
+}")
+echo "  N9_PR2=$N9_PR2 - Page Cache回写风暴坑引用"
+
+N9_PR3=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N9\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"TRIM/Discard命令导致SSD卡顿\",
+  \"description\": \"大量discard操作导致SSD固件处理延迟，I/O响应变慢。\",
+  \"sort_order\": 4
+}")
+echo "  N9_PR3=$N9_PR3 - TRIM/Discard卡顿坑引用"
+
 N9_S1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N9\",
@@ -771,6 +1035,16 @@ N9_S1=$(create "$API/tree-nodes" "{
   \"sort_order\": 2
 }")
 echo "  N9_S1=$N9_S1 - 卸载与同步"
+
+N9_S1_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N9_S1\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"umount时busy设备无法卸载\",
+  \"description\": \"有进程占用挂载点导致umount失败。\",
+  \"sort_order\": 0
+}")
+echo "    N9_S1_PR1=$N9_S1_PR1 - umount busy坑引用"
 
 # ═══════════════════════════════════════
 # so:10 SATA运行时机制 ★ EH/热插拔/电源管理/DFX 降为子节点
@@ -797,6 +1071,16 @@ N10_EH=$(create "$API/tree-nodes" "{
 }")
 echo "  N10_EH=$N10_EH - Error Handler"
 
+N10_EH_EX1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N10_EH\",
+  \"node_type\": \"exception\",
+  \"title\": \"libata EH与SCSI EH竞争死锁\",
+  \"description\": \"SATA命令超时同时触发两个EH子系统导致锁竞争死锁。\",
+  \"sort_order\": 10
+}")
+echo "    N10_EH_EX1=$N10_EH_EX1 - EH竞争死锁异常"
+
 N10_EH_S1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10_EH\",
@@ -807,6 +1091,16 @@ N10_EH_S1=$(create "$API/tree-nodes" "{
 }")
 echo "    N10_EH_S1=$N10_EH_S1 - EH错误分类"
 
+N10_EH_S1_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N10_EH_S1\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"EH错误分类误判导致不必要reset\",
+  \"description\": \"瞬态错误被误分类为需要hard reset的严重错误。\",
+  \"sort_order\": 0
+}")
+echo "      N10_EH_S1_PR1=$N10_EH_S1_PR1 - EH误判坑引用"
+
 N10_EH_S2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10_EH\",
@@ -816,6 +1110,16 @@ N10_EH_S2=$(create "$API/tree-nodes" "{
   \"sort_order\": 1
 }")
 echo "    N10_EH_S2=$N10_EH_S2 - EH Reset序列"
+
+N10_EH_S2_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N10_EH_S2\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"Reset后设备参数丢失需重配\",
+  \"description\": \"Hard reset后SET FEATURES配置的参数被复位为出厂默认。\",
+  \"sort_order\": 0
+}")
+echo "      N10_EH_S2_PR1=$N10_EH_S2_PR1 - Reset参数丢失坑引用"
 
 N10_EH_S3=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
@@ -899,6 +1203,16 @@ N10_DFX=$(create "$API/tree-nodes" "{
   \"sort_order\": 3
 }")
 echo "  N10_DFX=$N10_DFX - DFX调试手段"
+
+N10_DFX_PR1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N10_DFX\",
+  \"node_type\": \"pitfall_ref\",
+  \"title\": \"DFX调试开启后性能严重下降\",
+  \"description\": \"libata动态调试或blktrace全量跟踪导致I/O延迟显著增加。\",
+  \"sort_order\": 0
+}")
+echo "    N10_DFX_PR1=$N10_DFX_PR1 - DFX性能下降坑引用"
 
 # ═══════════════════════════════════════
 # so:11 运行时保障机制 ★ 从"阶段四"改为横切关注点
@@ -998,6 +1312,16 @@ N11_AER=$(create "$API/tree-nodes" "{
 }")
 echo "  N11_AER=$N11_AER - PCIe AER与设备Reset"
 
+N11_AER_EX1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N11_AER\",
+  \"node_type\": \"exception\",
+  \"title\": \"PCIe AER中断风暴\",
+  \"description\": \"PCIe设备持续报告Correctable Error形成中断风暴。\",
+  \"sort_order\": 0
+}")
+echo "    N11_AER_EX1=$N11_AER_EX1 - AER中断风暴异常"
+
 echo ""
 echo "=== Phase 4: 关联坑到节点 ==="
 
@@ -1089,6 +1413,71 @@ echo "  P24(hardlockup不可用) → N11_WD_PR2"
 
 post "$API/tree-nodes/$N11_KD_PR1/pitfalls" "{\"pitfall_id\": \"$P25\"}"
 echo "  P25(kdump失败) → N11_KD_PR1"
+
+# --- 新增坑关联 (P26-P43) ---
+
+# so:0 固件启动
+post "$API/tree-nodes/$N0_PR1/pitfalls" "{\"pitfall_id\": \"$P26\"}"
+echo "  P26(Secure Boot签名失败) → N0_PR1"
+
+post "$API/tree-nodes/$N0_PR2/pitfalls" "{\"pitfall_id\": \"$P27\"}"
+echo "  P27(SATA模式IDE/RAID) → N0_PR2"
+
+post "$API/tree-nodes/$N0_EX1/pitfalls" "{\"pitfall_id\": \"$P38\"}"
+echo "  P38(PCI资源冲突) → N0_EX1"
+
+# so:2 内核解压
+post "$API/tree-nodes/$N2_EX2/pitfalls" "{\"pitfall_id\": \"$P42\"}"
+echo "  P42(内核解压失败) → N2_EX2"
+
+# so:3 内核子系统初始化
+post "$API/tree-nodes/$N3_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P28\"}"
+echo "  P28(SAT命令不兼容) → N3_S1_PR1"
+
+post "$API/tree-nodes/$N3_S4_PR1/pitfalls" "{\"pitfall_id\": \"$P29\"}"
+echo "  P29(IDENTIFY数据异常) → N3_S4_PR1"
+
+# so:6 systemd
+post "$API/tree-nodes/$N6_PR2/pitfalls" "{\"pitfall_id\": \"$P43\"}"
+echo "  P43(udevd规则冲突) → N6_PR2"
+
+# so:7 块设备层
+post "$API/tree-nodes/$N7_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P30\"}"
+echo "  P30(GPT备份分区表) → N7_S1_PR1"
+
+post "$API/tree-nodes/$N7_S3_PR1/pitfalls" "{\"pitfall_id\": \"$P31\"}"
+echo "  P31(blk-mq CPU亲和性) → N7_S3_PR1"
+
+# so:8 文件系统挂载
+post "$API/tree-nodes/$N8_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P32\"}"
+echo "  P32(magic number误识别) → N8_S1_PR1"
+
+# so:9 运行时I/O
+post "$API/tree-nodes/$N9_PR2/pitfalls" "{\"pitfall_id\": \"$P40\"}"
+echo "  P40(Page Cache回写风暴) → N9_PR2"
+
+post "$API/tree-nodes/$N9_PR3/pitfalls" "{\"pitfall_id\": \"$P41\"}"
+echo "  P41(TRIM/Discard卡顿) → N9_PR3"
+
+post "$API/tree-nodes/$N9_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P33\"}"
+echo "  P33(umount busy) → N9_S1_PR1"
+
+# so:10 SATA运行时机制
+post "$API/tree-nodes/$N10_EH_EX1/pitfalls" "{\"pitfall_id\": \"$P39\"}"
+echo "  P39(EH竞争死锁) → N10_EH_EX1"
+
+post "$API/tree-nodes/$N10_EH_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P35\"}"
+echo "  P35(EH错误分类误判) → N10_EH_S1_PR1"
+
+post "$API/tree-nodes/$N10_EH_S2_PR1/pitfalls" "{\"pitfall_id\": \"$P36\"}"
+echo "  P36(Reset参数丢失) → N10_EH_S2_PR1"
+
+post "$API/tree-nodes/$N10_DFX_PR1/pitfalls" "{\"pitfall_id\": \"$P34\"}"
+echo "  P34(DFX性能下降) → N10_DFX_PR1"
+
+# so:11 运行时保障机制
+post "$API/tree-nodes/$N11_AER_EX1/pitfalls" "{\"pitfall_id\": \"$P37\"}"
+echo "  P37(AER中断风暴) → N11_AER_EX1"
 
 echo ""
 echo "=== Phase 5: 创建 3 个任务 ==="
@@ -1197,13 +1586,13 @@ echo "========================================="
 echo ""
 echo "验证命令："
 echo "  curl -s $API/knowledge-trees | jq 'length'              # 期望: 1"
-echo "  curl -s $API/pitfalls | jq 'length'                     # 期望: 25"
+echo "  curl -s $API/pitfalls | jq 'length'                     # 期望: 43"
 echo "  curl -s $API/tasks | jq 'length'                        # 期望: 3"
 echo "  curl -s $API/pitfalls/$P6 | jq '.references | length'   # 期望: 2 (跨节点引用)"
 echo "  curl -s $API/tree-nodes/$N1/instances | jq 'length'     # 期望: 2 (Ubuntu + Arch)"
 echo ""
 echo "前端页面验证："
 echo "  http://localhost:3000/knowledge  - 查看知识树"
-echo "  http://localhost:3000/pitfalls   - 查看25个坑及跨节点引用"
+echo "  http://localhost:3000/pitfalls   - 查看43个坑及跨节点引用"
 echo "  http://localhost:3000/tasks      - 查看3个任务"
 echo "  展开 GRUB2引导加载 节点 → 应看到 Ubuntu/Arch 泳道"

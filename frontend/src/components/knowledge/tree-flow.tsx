@@ -470,35 +470,37 @@ function buildExpandableFlow(
         },
       });
 
-      // Branch nodes below
-      let branchY = pos.y + BRANCH_OFFSET_Y;
-      for (const branch of branchChildren) {
-        flowNodes.push({
-          id: branch.id,
-          type: branch.node_type,
-          position: { x: pos.x, y: branchY },
-          data: {
-            label: branch.title,
-            nodeType: branch.node_type,
-            description: branch.description,
-            pitfalls: branch.pitfalls,
-            parentGroupId: item.parentGroupId,
-          },
-        });
-        flowEdges.push({
-          id: `branch-${item.node.id}-${branch.id}`,
-          source: item.node.id,
-          target: branch.id,
-          sourceHandle: "bottom",
-          type: "branch-edge",
-          animated: branch.node_type === "exception",
-          style: {
-            stroke: branch.node_type === "exception" ? "#f97316" : "#ef4444",
-            strokeWidth: 2,
-            strokeDasharray: "6 3",
-          },
-        });
-        branchY += NODE_HEIGHT + BRANCH_V_GAP;
+      // Branch nodes below (only when not collapsed)
+      if (!isCollapsed) {
+        let branchY = pos.y + BRANCH_OFFSET_Y;
+        for (const branch of branchChildren) {
+          flowNodes.push({
+            id: branch.id,
+            type: branch.node_type,
+            position: { x: pos.x, y: branchY },
+            data: {
+              label: branch.title,
+              nodeType: branch.node_type,
+              description: branch.description,
+              pitfalls: branch.pitfalls,
+              parentGroupId: item.parentGroupId,
+            },
+          });
+          flowEdges.push({
+            id: `branch-${item.node.id}-${branch.id}`,
+            source: item.node.id,
+            target: branch.id,
+            sourceHandle: "bottom",
+            type: "branch-edge",
+            animated: branch.node_type === "exception",
+            style: {
+              stroke: branch.node_type === "exception" ? "#f97316" : "#ef4444",
+              strokeWidth: 2,
+              strokeDasharray: "6 3",
+            },
+          });
+          branchY += NODE_HEIGHT + BRANCH_V_GAP;
+        }
       }
 
       // Connect from previous chunk
@@ -591,37 +593,39 @@ function buildExpandableFlow(
             },
           });
 
-          // Branch nodes below lane node
-          let branchY = laneY + BRANCH_OFFSET_Y;
-          for (const branch of branchChildren) {
-            const laneBranchId = `${branch.id}__lane-${instance.id}`;
-            flowNodes.push({
-              id: laneBranchId,
-              type: branch.node_type,
-              position: { x: laneX, y: branchY },
-              data: {
-                label: branch.title,
-                nodeType: branch.node_type,
-                description: branch.description,
-                pitfalls: branch.pitfalls,
-                parentGroupId,
-              },
-            });
-            flowEdges.push({
-              id: `branch-${laneNodeId}-${laneBranchId}`,
-              source: laneNodeId,
-              target: laneBranchId,
-              sourceHandle: "bottom",
-              type: "branch-edge",
-              animated: branch.node_type === "exception",
-              style: {
-                stroke:
-                  branch.node_type === "exception" ? "#f97316" : "#ef4444",
-                strokeWidth: 2,
-                strokeDasharray: "6 3",
-              },
-            });
-            branchY += NODE_HEIGHT + BRANCH_V_GAP;
+          // Branch nodes below lane node (only when not collapsed)
+          if (!isCollapsed) {
+            let branchY = laneY + BRANCH_OFFSET_Y;
+            for (const branch of branchChildren) {
+              const laneBranchId = `${branch.id}__lane-${instance.id}`;
+              flowNodes.push({
+                id: laneBranchId,
+                type: branch.node_type,
+                position: { x: laneX, y: branchY },
+                data: {
+                  label: branch.title,
+                  nodeType: branch.node_type,
+                  description: branch.description,
+                  pitfalls: branch.pitfalls,
+                  parentGroupId,
+                },
+              });
+              flowEdges.push({
+                id: `branch-${laneNodeId}-${laneBranchId}`,
+                source: laneNodeId,
+                target: laneBranchId,
+                sourceHandle: "bottom",
+                type: "branch-edge",
+                animated: branch.node_type === "exception",
+                style: {
+                  stroke:
+                    branch.node_type === "exception" ? "#f97316" : "#ef4444",
+                  strokeWidth: 2,
+                  strokeDasharray: "6 3",
+                },
+              });
+              branchY += NODE_HEIGHT + BRANCH_V_GAP;
+            }
           }
 
           // Horizontal edge within lane

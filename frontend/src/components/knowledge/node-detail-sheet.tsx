@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { updateTreeNode, deleteTreeNode } from "@/lib/api";
 import { NodePitfallManager } from "./node-pitfall-manager";
+import { InstanceManager } from "./instance-manager";
 import type { Pitfall } from "@/lib/types";
 import { Pencil, Trash2 } from "lucide-react";
 
@@ -213,6 +214,14 @@ export function NodeDetailSheet({
               pitfalls={nodeData.pitfalls}
               onMutate={onMutate}
             />
+
+            {nodeData.nodeType === "step" && (
+              <InstanceManager
+                groupNodeId={nodeId}
+                groupNodeTitle={nodeData.label}
+                onMutate={onMutate}
+              />
+            )}
           </div>
 
           <SheetFooter>

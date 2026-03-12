@@ -1060,6 +1060,113 @@ post "$API/tasks/$TASK3_ID/artifacts" '{
 echo "  Task3 artifact: Linux存储栈全景图"
 
 echo ""
+echo "=== Phase 7: 创建知识实例（泳道示例） ==="
+
+# 为 GRUB2 引导加载 (N1_2) 创建 Ubuntu 和 Arch 两个实例
+INST_UBUNTU=$(create "$API/knowledge-instances" "{
+  \"group_node_id\": \"$N1_2\",
+  \"name\": \"Ubuntu\",
+  \"description\": \"Ubuntu/Debian 系发行版的 GRUB 引导流程\"
+}")
+echo "INST_UBUNTU=$INST_UBUNTU - Ubuntu 实例"
+
+INST_ARCH=$(create "$API/knowledge-instances" "{
+  \"group_node_id\": \"$N1_2\",
+  \"name\": \"Arch Linux\",
+  \"description\": \"Arch Linux 的 GRUB 引导流程\"
+}")
+echo "INST_ARCH=$INST_ARCH - Arch Linux 实例"
+
+# 创建 GRUB 子步骤节点（Ubuntu 专属）
+N1_2_U1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N1_2\",
+  \"node_type\": \"step\",
+  \"title\": \"apt install grub-efi\",
+  \"description\": \"通过 apt 安装 GRUB EFI 版本\",
+  \"sort_order\": 10
+}")
+echo "N1_2_U1=$N1_2_U1 - apt install grub-efi"
+
+N1_2_U2=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N1_2\",
+  \"node_type\": \"step\",
+  \"title\": \"update-grub 生成配置\",
+  \"description\": \"运行 update-grub 自动扫描内核并生成 grub.cfg\",
+  \"sort_order\": 11
+}")
+echo "N1_2_U2=$N1_2_U2 - update-grub"
+
+N1_2_U3=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N1_2\",
+  \"node_type\": \"step\",
+  \"title\": \"验证引导项\",
+  \"description\": \"检查 /boot/grub/grub.cfg 中的 menuentry 是否正确\",
+  \"sort_order\": 12
+}")
+echo "N1_2_U3=$N1_2_U3 - 验证引导项(Ubuntu)"
+
+# 创建 GRUB 子步骤节点（Arch 专属）
+N1_2_A1=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N1_2\",
+  \"node_type\": \"step\",
+  \"title\": \"pacman -S grub efibootmgr\",
+  \"description\": \"通过 pacman 安装 GRUB 和 EFI 引导管理器\",
+  \"sort_order\": 20
+}")
+echo "N1_2_A1=$N1_2_A1 - pacman install grub"
+
+N1_2_A2=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N1_2\",
+  \"node_type\": \"step\",
+  \"title\": \"grub-install --target=x86_64-efi\",
+  \"description\": \"安装 GRUB 到 EFI 系统分区\",
+  \"sort_order\": 21
+}")
+echo "N1_2_A2=$N1_2_A2 - grub-install"
+
+N1_2_A3=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N1_2\",
+  \"node_type\": \"step\",
+  \"title\": \"grub-mkconfig -o /boot/grub/grub.cfg\",
+  \"description\": \"生成 GRUB 配置文件\",
+  \"sort_order\": 22
+}")
+echo "N1_2_A3=$N1_2_A3 - grub-mkconfig"
+
+N1_2_A4=$(create "$API/tree-nodes" "{
+  \"tree_id\": \"$T1\",
+  \"parent_id\": \"$N1_2\",
+  \"node_type\": \"step\",
+  \"title\": \"配置 fallback initramfs\",
+  \"description\": \"确保 mkinitcpio 生成 fallback initramfs 作为备用\",
+  \"sort_order\": 23
+}")
+echo "N1_2_A4=$N1_2_A4 - fallback initramfs(Arch)"
+
+# 分配节点到实例
+post "$API/tree-nodes/$N1_2_U1/instances/$INST_UBUNTU" '{}'
+echo "  N1_2_U1 → Ubuntu 实例"
+post "$API/tree-nodes/$N1_2_U2/instances/$INST_UBUNTU" '{}'
+echo "  N1_2_U2 → Ubuntu 实例"
+post "$API/tree-nodes/$N1_2_U3/instances/$INST_UBUNTU" '{}'
+echo "  N1_2_U3 → Ubuntu 实例"
+
+post "$API/tree-nodes/$N1_2_A1/instances/$INST_ARCH" '{}'
+echo "  N1_2_A1 → Arch 实例"
+post "$API/tree-nodes/$N1_2_A2/instances/$INST_ARCH" '{}'
+echo "  N1_2_A2 → Arch 实例"
+post "$API/tree-nodes/$N1_2_A3/instances/$INST_ARCH" '{}'
+echo "  N1_2_A3 → Arch 实例"
+post "$API/tree-nodes/$N1_2_A4/instances/$INST_ARCH" '{}'
+echo "  N1_2_A4 → Arch 实例"
+
+echo ""
 echo "========================================="
 echo "数据填充完成！"
 echo "========================================="
@@ -1069,8 +1176,10 @@ echo "  curl -s $API/knowledge-trees | jq 'length'          # 期望: 1"
 echo "  curl -s $API/pitfalls | jq 'length'                 # 期望: 25"
 echo "  curl -s $API/tasks | jq 'length'                    # 期望: 3"
 echo "  curl -s $API/pitfalls/$P6 | jq '.references | length'  # 期望: 2 (跨模块引用)"
+echo "  curl -s $API/tree-nodes/$N1_2/instances | jq 'length'  # 期望: 2 (Ubuntu + Arch)"
 echo ""
 echo "前端页面验证："
 echo "  http://localhost:3000/knowledge  - 查看1棵统一知识树"
 echo "  http://localhost:3000/pitfalls   - 查看25个坑及跨模块引用"
 echo "  http://localhost:3000/tasks      - 查看3个任务及自动识别的坑"
+echo "  展开 GRUB2引导加载 节点 → 应看到 Ubuntu/Arch 泳道"

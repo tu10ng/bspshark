@@ -162,6 +162,17 @@ async fn get_tree_nodes(
     .fetch_all(pool.get_ref())
     .await?;
 
+    // Fetch all instance assignments for nodes in this tree
+    let instance_assignments: Vec<(String, String)> = sqlx::query_as(
+        "SELECT nia.node_id, nia.instance_id FROM node_instance_assignments nia
+         JOIN tree_nodes tn ON nia.node_id = tn.id
+         WHERE tn.tree_id = ?1"
+    )
+    .bind(&tree_id)
+    .fetch_all(pool.get_ref())
+    .await
+    .unwrap_or_default();
+
     // Fetch all pitfall refs for nodes in this tree
     let pitfall_refs: Vec<(String, Pitfall)> = {
         let refs = sqlx::query_as::<_, (String, String)>(
@@ -188,13 +199,14 @@ async fn get_tree_nodes(
     };
 
     // Build nested tree
-    let nested = build_nested_tree(&nodes, &pitfall_refs, None);
+    let nested = build_nested_tree(&nodes, &pitfall_refs, &instance_assignments, None);
     Ok(HttpResponse::Ok().json(nested))
 }
 
 fn build_nested_tree(
     all_nodes: &[TreeNode],
     pitfall_refs: &[(String, Pitfall)],
+    instance_assignments: &[(String, String)],
     parent_id: Option<&str>,
 ) -> Vec<TreeNodeNested> {
     let mut result: Vec<TreeNodeNested> = all_nodes
@@ -207,7 +219,13 @@ fn build_nested_tree(
                 .map(|(_, p)| p.clone())
                 .collect();
 
-            let children = build_nested_tree(all_nodes, pitfall_refs, Some(&node.id));
+            let inst_ids: Vec<String> = instance_assignments
+                .iter()
+                .filter(|(nid, _)| nid == &node.id)
+                .map(|(_, iid)| iid.clone())
+                .collect();
+
+            let children = build_nested_tree(all_nodes, pitfall_refs, instance_assignments, Some(&node.id));
 
             TreeNodeNested {
                 node: TreeNode {
@@ -223,6 +241,7 @@ fn build_nested_tree(
                 },
                 pitfalls,
                 children,
+                instance_ids: inst_ids,
             }
         })
         .collect();

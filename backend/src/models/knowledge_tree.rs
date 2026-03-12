@@ -58,6 +58,8 @@ pub struct UpdateTreeNode {
 pub struct ReorderNode {
     pub parent_id: Option<String>,
     pub sort_order: i32,
+    /// Optional: move node (and all descendants) to a different tree
+    pub tree_id: Option<String>,
 }
 
 /// Nested tree node with children and associated pitfalls, used for API responses
@@ -67,4 +69,5 @@ pub struct TreeNodeNested {
     pub node: TreeNode,
     pub pitfalls: Vec<super::pitfall::Pitfall>,
     pub children: Vec<TreeNodeNested>,
+    pub instance_ids: Vec<String>,
 }

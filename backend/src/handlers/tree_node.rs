@@ -141,6 +141,33 @@ async fn reorder_node(
             .map_err(|_| AppError::NotFound("Parent node not found".to_string()))?;
     }
 
+    // If tree_id is specified, verify target tree exists and update this node + all descendants
+    if let Some(tree_id) = &body.tree_id {
+        sqlx::query("SELECT id FROM knowledge_trees WHERE id = ?1")
+            .bind(tree_id)
+            .fetch_one(pool.get_ref())
+            .await
+            .map_err(|_| AppError::NotFound("Target knowledge tree not found".to_string()))?;
+
+        // Recursively update tree_id for this node and all descendants
+        // using a CTE to find all descendant node IDs
+        sqlx::query(
+            "WITH RECURSIVE descendants(id) AS (
+                SELECT ?1
+                UNION ALL
+                SELECT tn.id FROM tree_nodes tn
+                JOIN descendants d ON tn.parent_id = d.id
+            )
+            UPDATE tree_nodes SET tree_id = ?2,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+            WHERE id IN (SELECT id FROM descendants)"
+        )
+        .bind(&id)
+        .bind(tree_id)
+        .execute(pool.get_ref())
+        .await?;
+    }
+
     sqlx::query(
         "UPDATE tree_nodes SET parent_id = ?1, sort_order = ?2,
          updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?3"

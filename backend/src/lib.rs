@@ -42,6 +42,13 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
         .service(handlers::pitfall::get_pitfall)
         .service(handlers::pitfall::update_pitfall)
         .service(handlers::pitfall::delete_pitfall)
+        // Knowledge instances
+        .service(handlers::knowledge_instance::create_instance)
+        .service(handlers::knowledge_instance::update_instance)
+        .service(handlers::knowledge_instance::delete_instance)
+        .service(handlers::knowledge_instance::list_instances)
+        .service(handlers::knowledge_instance::assign_node_instance)
+        .service(handlers::knowledge_instance::unassign_node_instance)
         // Tasks
         .service(handlers::task::list_tasks)
         .service(handlers::task::create_task)

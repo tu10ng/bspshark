@@ -4,6 +4,7 @@ import type {
   ToolExecution,
   DashboardStats,
   KnowledgeTree,
+  KnowledgeInstance,
   TreeNodeNested,
   Pitfall,
   PitfallWithRefs,
@@ -178,6 +179,56 @@ export function unlinkNodePitfall(
   pitfallId: string
 ): Promise<void> {
   return fetchApi(`/api/v1/tree-nodes/${nodeId}/pitfalls/${pitfallId}`, {
+    method: "DELETE",
+  });
+}
+
+// Knowledge Instances
+export function getInstances(
+  groupNodeId: string
+): Promise<KnowledgeInstance[]> {
+  return fetchApi(`/api/v1/tree-nodes/${groupNodeId}/instances`);
+}
+
+export function createInstance(data: {
+  group_node_id: string;
+  name: string;
+  description?: string;
+}): Promise<KnowledgeInstance> {
+  return fetchApi("/api/v1/knowledge-instances", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateInstance(
+  id: string,
+  data: { name?: string; description?: string }
+): Promise<KnowledgeInstance> {
+  return fetchApi(`/api/v1/knowledge-instances/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteInstance(id: string): Promise<void> {
+  return fetchApi(`/api/v1/knowledge-instances/${id}`, { method: "DELETE" });
+}
+
+export function assignNodeInstance(
+  nodeId: string,
+  instanceId: string
+): Promise<void> {
+  return fetchApi(`/api/v1/tree-nodes/${nodeId}/instances/${instanceId}`, {
+    method: "POST",
+  });
+}
+
+export function unassignNodeInstance(
+  nodeId: string,
+  instanceId: string
+): Promise<void> {
+  return fetchApi(`/api/v1/tree-nodes/${nodeId}/instances/${instanceId}`, {
     method: "DELETE",
   });
 }

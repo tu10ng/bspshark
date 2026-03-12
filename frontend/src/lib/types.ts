@@ -73,6 +73,17 @@ export interface TreeNode {
 export interface TreeNodeNested extends TreeNode {
   pitfalls: Pitfall[];
   children: TreeNodeNested[];
+  instance_ids: string[];
+}
+
+export interface KnowledgeInstance {
+  id: string;
+  group_node_id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Pitfall {

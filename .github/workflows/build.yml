@@ -1,8 +1,11 @@
-name: Build & Package
+name: Build & Release
 
 on:
   push:
     branches: [master]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -67,7 +70,12 @@ jobs:
 
           tar -czf bspshark-linux-x64.tar.gz $DIST/
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bspshark-linux-x64
-          path: bspshark-linux-x64.tar.gz
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(date -u +%Y.%m.%d)-${GITHUB_SHA::7}"
+          gh release create "$TAG" \
+            bspshark-linux-x64.tar.gz \
+            --title "$TAG" \
+            --notes "Build from [\`${GITHUB_SHA::7}\`](${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA})"

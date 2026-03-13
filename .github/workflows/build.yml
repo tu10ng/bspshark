@@ -1,0 +1,73 @@
+name: Build & Package
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Rust backend
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+      - name: Build backend
+        run: cd backend && cargo build -j 6 --release
+
+      # Node.js frontend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+      - name: Install frontend deps
+        run: cd frontend && pnpm install --frozen-lockfile
+      - name: Build frontend
+        run: cd frontend && BACKEND_URL=http://localhost:8080 pnpm build
+
+      # Download portable Node.js binary
+      - name: Download Node.js binary
+        run: |
+          NODE_VERSION=$(node -v)
+          mkdir -p /tmp/node-portable
+          curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz" \
+            | tar -xJ --strip-components=2 -C /tmp/node-portable "node-${NODE_VERSION}-linux-x64/bin/node"
+
+      # Package deployment artifact
+      - name: Package dist
+        run: |
+          DIST=bspshark
+          rm -rf $DIST
+          mkdir -p $DIST/frontend $DIST/migrations $DIST/data $DIST/logs $DIST/pids
+
+          # Backend binary
+          cp backend/target/release/backend $DIST/
+
+          # Node.js binary
+          cp /tmp/node-portable/node $DIST/node
+          chmod +x $DIST/node
+
+          # Frontend standalone
+          cp -r frontend/.next/standalone/. $DIST/frontend/
+          cp -r frontend/.next/static $DIST/frontend/.next/static
+          cp -r frontend/public $DIST/frontend/public
+
+          # Migration files
+          cp -r backend/migrations/* $DIST/migrations/
+
+          # Deploy scripts and config
+          cp deploy/.env.production $DIST/.env.example
+          cp deploy/start.sh deploy/stop.sh deploy/update.sh $DIST/
+          chmod +x $DIST/start.sh $DIST/stop.sh $DIST/update.sh
+
+          tar -czf bspshark-linux-x64.tar.gz $DIST/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bspshark-linux-x64
+          path: bspshark-linux-x64.tar.gz

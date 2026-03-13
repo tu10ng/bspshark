@@ -1,4 +1,4 @@
-.PHONY: dev dev-frontend dev-backend build build-frontend build-backend test test-frontend test-backend lint lint-frontend lint-backend db-migrate
+.PHONY: dev dev-frontend dev-backend build build-frontend build-backend test test-frontend test-backend lint lint-frontend lint-backend db-migrate dist
 
 # Development
 dev:
@@ -41,3 +41,20 @@ lint-backend:
 # Database
 db-migrate:
 	cd backend && sqlx database create && sqlx migrate run
+
+# Dist packaging (local build)
+DIST_DIR := dist/bspshark
+
+dist: build
+	rm -rf dist
+	mkdir -p $(DIST_DIR)/frontend $(DIST_DIR)/migrations $(DIST_DIR)/data $(DIST_DIR)/logs $(DIST_DIR)/pids
+	cp backend/target/release/backend $(DIST_DIR)/
+	cp -r frontend/.next/standalone/. $(DIST_DIR)/frontend/
+	cp -r frontend/.next/static $(DIST_DIR)/frontend/.next/static
+	cp -r frontend/public $(DIST_DIR)/frontend/public
+	cp -r backend/migrations/* $(DIST_DIR)/migrations/
+	cp deploy/.env.production $(DIST_DIR)/.env.example
+	cp deploy/start.sh deploy/stop.sh deploy/update.sh $(DIST_DIR)/
+	chmod +x $(DIST_DIR)/start.sh $(DIST_DIR)/stop.sh $(DIST_DIR)/update.sh
+	@echo "Dist ready at $(DIST_DIR)/"
+	@echo "Run: cd $(DIST_DIR) && cp .env.example .env && ./start.sh"

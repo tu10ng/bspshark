@@ -1,0 +1,24 @@
+# openSUSE 部署模拟环境
+#
+# 用法:
+#   make dist  # 先在本地构建部署包
+#   docker compose -f deploy/docker-compose.test.yml up --build
+services:
+  bspshark:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.opensuse
+    ports:
+      - "3000:3000"
+      - "8080:8080"
+    volumes:
+      - bspshark-test-data:/opt/bspshark/data
+    environment:
+      - DATABASE_URL=sqlite://data/bspshark.db
+      - BACKEND_PORT=8080
+      - FRONTEND_PORT=3000
+      - FRONTEND_URL=http://localhost:3000
+      - BACKEND_URL=http://localhost:8080
+
+volumes:
+  bspshark-test-data:

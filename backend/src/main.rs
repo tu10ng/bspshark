@@ -21,11 +21,15 @@ async fn main() -> std::io::Result<()> {
         .parse()
         .expect("BACKEND_PORT must be a valid port number");
 
+    let frontend_url = std::env::var("FRONTEND_URL")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
     log::info!("Starting server on 0.0.0.0:{}", port);
+    log::info!("CORS allowed origin: {}", frontend_url);
 
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin("http://localhost:3000")
+            .allowed_origin(&frontend_url)
             .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
             .allowed_headers(vec!["Content-Type", "Authorization"])
             .max_age(3600);

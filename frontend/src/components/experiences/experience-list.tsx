@@ -1,25 +1,25 @@
-import { PitfallCard } from "./pitfall-card";
-import type { Pitfall } from "@/lib/types";
+import { ExperienceCard } from "./experience-card";
+import type { Experience } from "@/lib/types";
 
-export function PitfallList({ pitfalls }: { pitfalls: Pitfall[] }) {
-  if (pitfalls.length === 0) {
+export function ExperienceList({ experiences }: { experiences: Experience[] }) {
+  if (experiences.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <p className="text-muted-foreground text-sm">没有找到相关的坑</p>
+        <p className="text-muted-foreground text-sm">没有找到相关的经验</p>
       </div>
     );
   }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {pitfalls.map((pitfall) => (
-        <PitfallCard key={pitfall.id} pitfall={pitfall} />
+      {experiences.map((experience) => (
+        <ExperienceCard key={experience.id} experience={experience} />
       ))}
     </div>
   );
 }
 
-export function PitfallListSkeleton() {
+export function ExperienceListSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (

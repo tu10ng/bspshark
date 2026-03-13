@@ -6,8 +6,8 @@ import type {
   KnowledgeTree,
   KnowledgeInstance,
   TreeNodeNested,
-  Pitfall,
-  PitfallWithRefs,
+  Experience,
+  ExperienceWithRefs,
   Task,
   TaskDetail,
   TaskArtifact,
@@ -130,7 +130,6 @@ export function getTreeNodes(treeId: string): Promise<TreeNodeNested[]> {
 export function createTreeNode(data: {
   tree_id: string;
   parent_id?: string;
-  node_type: string;
   title: string;
   description?: string;
 }): Promise<TreeNode> {
@@ -142,7 +141,7 @@ export function createTreeNode(data: {
 
 export function updateTreeNode(
   id: string,
-  data: { title?: string; description?: string; node_type?: string }
+  data: { title?: string; description?: string }
 ): Promise<TreeNode> {
   return fetchApi(`/api/v1/tree-nodes/${id}`, {
     method: "PUT",
@@ -164,21 +163,21 @@ export function reorderTreeNode(
   });
 }
 
-export function linkNodePitfall(
+export function linkNodeExperience(
   nodeId: string,
-  pitfallId: string
+  experienceId: string
 ): Promise<void> {
-  return fetchApi(`/api/v1/tree-nodes/${nodeId}/pitfalls`, {
+  return fetchApi(`/api/v1/tree-nodes/${nodeId}/experiences`, {
     method: "POST",
-    body: JSON.stringify({ pitfall_id: pitfallId }),
+    body: JSON.stringify({ experience_id: experienceId }),
   });
 }
 
-export function unlinkNodePitfall(
+export function unlinkNodeExperience(
   nodeId: string,
-  pitfallId: string
+  experienceId: string
 ): Promise<void> {
-  return fetchApi(`/api/v1/tree-nodes/${nodeId}/pitfalls/${pitfallId}`, {
+  return fetchApi(`/api/v1/tree-nodes/${nodeId}/experiences/${experienceId}`, {
     method: "DELETE",
   });
 }
@@ -233,39 +232,39 @@ export function unassignNodeInstance(
   });
 }
 
-// Pitfalls
-export function getPitfalls(params?: {
+// Experiences
+export function getExperiences(params?: {
   q?: string;
   status?: string;
   severity?: string;
   tag?: string;
-}): Promise<Pitfall[]> {
+}): Promise<Experience[]> {
   const searchParams = new URLSearchParams();
   if (params?.q) searchParams.set("q", params.q);
   if (params?.status) searchParams.set("status", params.status);
   if (params?.severity) searchParams.set("severity", params.severity);
   if (params?.tag) searchParams.set("tag", params.tag);
   const qs = searchParams.toString();
-  return fetchApi(`/api/v1/pitfalls${qs ? `?${qs}` : ""}`);
+  return fetchApi(`/api/v1/experiences${qs ? `?${qs}` : ""}`);
 }
 
-export function getPitfall(id: string): Promise<PitfallWithRefs> {
-  return fetchApi(`/api/v1/pitfalls/${id}`);
+export function getExperience(id: string): Promise<ExperienceWithRefs> {
+  return fetchApi(`/api/v1/experiences/${id}`);
 }
 
-export function createPitfall(data: {
+export function createExperience(data: {
   title: string;
   description?: string;
   severity?: string;
   tags?: string[];
-}): Promise<Pitfall> {
-  return fetchApi("/api/v1/pitfalls", {
+}): Promise<Experience> {
+  return fetchApi("/api/v1/experiences", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export function updatePitfall(
+export function updateExperience(
   id: string,
   data: {
     title?: string;
@@ -275,15 +274,15 @@ export function updatePitfall(
     resolution_notes?: string;
     tags?: string[];
   }
-): Promise<Pitfall> {
-  return fetchApi(`/api/v1/pitfalls/${id}`, {
+): Promise<Experience> {
+  return fetchApi(`/api/v1/experiences/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
-export function deletePitfall(id: string): Promise<void> {
-  return fetchApi(`/api/v1/pitfalls/${id}`, { method: "DELETE" });
+export function deleteExperience(id: string): Promise<void> {
+  return fetchApi(`/api/v1/experiences/${id}`, { method: "DELETE" });
 }
 
 // Tasks
@@ -311,7 +310,7 @@ export function createTask(data: {
   assigned_by?: string;
   modules?: string[];
   due_date?: string;
-}): Promise<{ task: Task; auto_identified_pitfalls: Pitfall[] }> {
+}): Promise<{ task: Task; auto_identified_experiences: Experience[] }> {
   return fetchApi("/api/v1/tasks", {
     method: "POST",
     body: JSON.stringify(data),
@@ -327,7 +326,7 @@ export function updateTask(
     assigned_by?: string;
     status?: string;
     modules?: string[];
-    discovered_pitfalls_notes?: string;
+    discovered_experiences_notes?: string;
     due_date?: string;
   }
 ): Promise<Task> {
@@ -379,6 +378,6 @@ export function deleteTaskArtifact(
   });
 }
 
-export function getTaskPitfalls(taskId: string): Promise<Pitfall[]> {
-  return fetchApi(`/api/v1/tasks/${taskId}/pitfalls`);
+export function getTaskExperiences(taskId: string): Promise<Experience[]> {
+  return fetchApi(`/api/v1/tasks/${taskId}/experiences`);
 }

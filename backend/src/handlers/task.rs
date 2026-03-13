@@ -3,8 +3,8 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::models::experience::Experience;
 use crate::models::knowledge_tree::TreeNode;
-use crate::models::pitfall::Pitfall;
 use crate::models::task::*;
 
 #[get("/api/v1/tasks")]
@@ -65,15 +65,15 @@ async fn create_task(
         .fetch_one(pool.get_ref())
         .await?;
 
-    // Auto-identify pitfalls based on modules
-    let auto_pitfalls = identify_pitfalls_for_modules(
+    // Auto-identify experiences based on modules
+    let auto_experiences = identify_experiences_for_modules(
         pool.get_ref(),
         &body.modules.as_deref().unwrap_or(&[]),
     ).await?;
 
     Ok(HttpResponse::Created().json(serde_json::json!({
         "task": task,
-        "auto_identified_pitfalls": auto_pitfalls,
+        "auto_identified_experiences": auto_experiences,
     })))
 }
 
@@ -131,13 +131,13 @@ async fn update_task(
     let modules = body.modules.as_ref()
         .map(|m| serde_json::to_string(m).unwrap())
         .unwrap_or(existing.modules.clone());
-    let discovered_pitfalls_notes = body.discovered_pitfalls_notes.as_deref()
-        .or(existing.discovered_pitfalls_notes.as_deref());
+    let discovered_experiences_notes = body.discovered_experiences_notes.as_deref()
+        .or(existing.discovered_experiences_notes.as_deref());
     let due_date = body.due_date.as_deref().or(existing.due_date.as_deref());
 
     sqlx::query(
         "UPDATE tasks SET title = ?1, description = ?2, assignee = ?3, assigned_by = ?4,
-         status = ?5, modules = ?6, discovered_pitfalls_notes = ?7, due_date = ?8,
+         status = ?5, modules = ?6, discovered_experiences_notes = ?7, due_date = ?8,
          updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?9"
     )
     .bind(title)
@@ -146,7 +146,7 @@ async fn update_task(
     .bind(assigned_by)
     .bind(status)
     .bind(&modules)
-    .bind(discovered_pitfalls_notes)
+    .bind(discovered_experiences_notes)
     .bind(due_date)
     .bind(&id)
     .execute(pool.get_ref())
@@ -289,8 +289,8 @@ async fn delete_artifact(
     Ok(HttpResponse::NoContent().finish())
 }
 
-#[get("/api/v1/tasks/{id}/pitfalls")]
-async fn get_task_pitfalls(
+#[get("/api/v1/tasks/{id}/experiences")]
+async fn get_task_experiences(
     pool: web::Data<SqlitePool>,
     path: web::Path<String>,
 ) -> Result<HttpResponse, AppError> {
@@ -302,25 +302,25 @@ async fn get_task_pitfalls(
         .await
         .map_err(|_| AppError::NotFound("Task not found".to_string()))?;
 
-    // Get pitfalls via task -> nodes -> pitfalls
-    let pitfalls = sqlx::query_as::<_, Pitfall>(
-        "SELECT DISTINCT p.* FROM pitfalls p
-         JOIN node_pitfall_refs npr ON p.id = npr.pitfall_id
-         JOIN task_node_refs tnr ON npr.node_id = tnr.node_id
+    // Get experiences via task -> nodes -> experiences
+    let experiences = sqlx::query_as::<_, Experience>(
+        "SELECT DISTINCT e.* FROM experiences e
+         JOIN node_experience_refs ner ON e.id = ner.experience_id
+         JOIN task_node_refs tnr ON ner.node_id = tnr.node_id
          WHERE tnr.task_id = ?1"
     )
     .bind(&task_id)
     .fetch_all(pool.get_ref())
     .await?;
 
-    Ok(HttpResponse::Ok().json(pitfalls))
+    Ok(HttpResponse::Ok().json(experiences))
 }
 
-/// Auto-identify pitfalls for given modules
-async fn identify_pitfalls_for_modules(
+/// Auto-identify experiences for given modules
+async fn identify_experiences_for_modules(
     pool: &SqlitePool,
     modules: &[String],
-) -> Result<Vec<Pitfall>, AppError> {
+) -> Result<Vec<Experience>, AppError> {
     if modules.is_empty() {
         return Ok(vec![]);
     }
@@ -329,19 +329,19 @@ async fn identify_pitfalls_for_modules(
         .map(|(i, _)| format!("?{}", i + 1))
         .collect();
     let sql = format!(
-        "SELECT DISTINCT p.* FROM pitfalls p
-         JOIN node_pitfall_refs npr ON p.id = npr.pitfall_id
-         JOIN tree_nodes tn ON npr.node_id = tn.id
+        "SELECT DISTINCT e.* FROM experiences e
+         JOIN node_experience_refs ner ON e.id = ner.experience_id
+         JOIN tree_nodes tn ON ner.node_id = tn.id
          JOIN knowledge_trees kt ON tn.tree_id = kt.id
          WHERE kt.module IN ({})
-         AND p.status = 'active'",
+         AND e.status = 'active'",
         placeholders.join(", ")
     );
 
-    let mut q = sqlx::query_as::<_, Pitfall>(&sql);
+    let mut q = sqlx::query_as::<_, Experience>(&sql);
     for module in modules {
         q = q.bind(module);
     }
-    let pitfalls = q.fetch_all(pool).await?;
-    Ok(pitfalls)
+    let experiences = q.fetch_all(pool).await?;
+    Ok(experiences)
 }

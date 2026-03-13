@@ -34,14 +34,14 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
         .service(handlers::tree_node::update_node)
         .service(handlers::tree_node::delete_node)
         .service(handlers::tree_node::reorder_node)
-        .service(handlers::tree_node::link_pitfall)
-        .service(handlers::tree_node::unlink_pitfall)
-        // Pitfalls
-        .service(handlers::pitfall::list_pitfalls)
-        .service(handlers::pitfall::create_pitfall)
-        .service(handlers::pitfall::get_pitfall)
-        .service(handlers::pitfall::update_pitfall)
-        .service(handlers::pitfall::delete_pitfall)
+        .service(handlers::tree_node::link_experience)
+        .service(handlers::tree_node::unlink_experience)
+        // Experiences
+        .service(handlers::experience::list_experiences)
+        .service(handlers::experience::create_experience)
+        .service(handlers::experience::get_experience)
+        .service(handlers::experience::update_experience)
+        .service(handlers::experience::delete_experience)
         // Knowledge instances
         .service(handlers::knowledge_instance::create_instance)
         .service(handlers::knowledge_instance::update_instance)
@@ -59,5 +59,5 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
         .service(handlers::task::unlink_task_node)
         .service(handlers::task::create_artifact)
         .service(handlers::task::delete_artifact)
-        .service(handlers::task::get_task_pitfalls);
+        .service(handlers::task::get_task_experiences);
 }

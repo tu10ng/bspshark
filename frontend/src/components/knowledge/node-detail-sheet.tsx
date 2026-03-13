@@ -12,14 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -28,16 +20,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { updateTreeNode, deleteTreeNode } from "@/lib/api";
-import { NodePitfallManager } from "./node-pitfall-manager";
+import { NodeExperienceManager } from "./node-experience-manager";
 import { InstanceManager } from "./instance-manager";
-import type { Pitfall } from "@/lib/types";
+import type { Experience } from "@/lib/types";
 import { Pencil, Trash2 } from "lucide-react";
 
 interface FlowNodeData {
   label: string;
-  nodeType: "step" | "pitfall_ref" | "exception";
   description: string | null;
-  pitfalls: Pitfall[];
+  experiences: Experience[];
   [key: string]: unknown;
 }
 
@@ -49,12 +40,6 @@ interface NodeDetailSheetProps {
   treeId: string;
   onMutate: () => void;
 }
-
-const NODE_TYPE_LABELS: Record<string, string> = {
-  step: "步骤",
-  exception: "异常场景",
-  pitfall_ref: "坑引用",
-};
 
 export function NodeDetailSheet({
   open,
@@ -68,14 +53,12 @@ export function NodeDetailSheet({
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(nodeData.label);
   const [description, setDescription] = useState(nodeData.description ?? "");
-  const [nodeType, setNodeType] = useState(nodeData.nodeType);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const handleStartEdit = () => {
     setTitle(nodeData.label);
     setDescription(nodeData.description ?? "");
-    setNodeType(nodeData.nodeType);
     setEditing(true);
   };
 
@@ -86,7 +69,6 @@ export function NodeDetailSheet({
       await updateTreeNode(nodeId, {
         title: title.trim(),
         description: description.trim() || undefined,
-        node_type: nodeType,
       });
       setEditing(false);
       onMutate();
@@ -134,11 +116,7 @@ export function NodeDetailSheet({
               )}
             </div>
             {!editing && (
-              <SheetDescription>
-                <Badge variant="outline" className="text-xs">
-                  {NODE_TYPE_LABELS[nodeData.nodeType] ?? nodeData.nodeType}
-                </Badge>
-              </SheetDescription>
+              <SheetDescription>知识节点</SheetDescription>
             )}
           </SheetHeader>
 
@@ -161,27 +139,6 @@ export function NodeDetailSheet({
                     placeholder="详细描述（可选）"
                     rows={4}
                   />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">节点类型</label>
-                  <Select
-                    value={nodeType}
-                    onValueChange={(v) =>
-                      v &&
-                      setNodeType(
-                        v as "step" | "pitfall_ref" | "exception"
-                      )
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="step">步骤</SelectItem>
-                      <SelectItem value="exception">异常场景</SelectItem>
-                      <SelectItem value="pitfall_ref">坑引用</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={handleSave} disabled={saving} size="sm">
@@ -209,19 +166,17 @@ export function NodeDetailSheet({
               </>
             )}
 
-            <NodePitfallManager
+            <NodeExperienceManager
               nodeId={nodeId}
-              pitfalls={nodeData.pitfalls}
+              experiences={nodeData.experiences}
               onMutate={onMutate}
             />
 
-            {nodeData.nodeType === "step" && (
-              <InstanceManager
-                groupNodeId={nodeId}
-                groupNodeTitle={nodeData.label}
-                onMutate={onMutate}
-              />
-            )}
+            <InstanceManager
+              groupNodeId={nodeId}
+              groupNodeTitle={nodeData.label}
+              onMutate={onMutate}
+            />
           </div>
 
           <SheetFooter>

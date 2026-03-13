@@ -4,6 +4,13 @@
 
 全栈网站：工作信息/Wiki + 多语言工具平台（Python、Java、Bash 脚本在线执行）。
 
+## 术语表
+
+- **知识（knowledge）**：树中的基本单元，所有节点都是知识，可无限嵌套
+- **经验（experience）**：独立实体（原称"坑"），通过多对多关联到知识节点
+- **并行知识（knowledge instance）**：同一知识的不同变体（如 Ubuntu vs Arch）
+- **知识树（knowledge tree）**：以树形结构组织的知识集合
+
 ## 技术栈
 
 - **前端**: pnpm + Next.js (App Router) + shadcn/ui + TailwindCSS v4
@@ -17,7 +24,7 @@ bspshark/
 ├── .env               # 环境变量（DATABASE_URL, BACKEND_PORT 等）
 ├── frontend/          # Next.js 前端
 │   ├── src/app/       # App Router 页面
-│   │   └── (app)/     # 带侧边栏的路由组 (/, /wiki, /tools, /knowledge, /pitfalls, /tasks)
+│   │   └── (app)/     # 带侧边栏的路由组 (/, /wiki, /tools, /knowledge, /experiences, /tasks)
 │   ├── src/components/ # UI 组件
 │   │   ├── ui/        # shadcn/ui 组件 (CLI 管理)
 │   │   ├── layout/    # 布局组件 (sidebar, header, nav)
@@ -25,7 +32,7 @@ bspshark/
 │   │   ├── wiki/      # Wiki 组件
 │   │   ├── tools/     # Tools 组件
 │   │   ├── knowledge/ # 知识树组件 (tree-flow, node-form 等)
-│   │   ├── pitfalls/  # 坑组件
+│   │   ├── experiences/ # 经验组件
 │   │   └── tasks/     # 任务组件
 │   ├── src/lib/       # 工具函数 (utils, api, types)
 │   └── src/hooks/     # 自定义 Hooks (use-sse, use-debounce)
@@ -35,10 +42,10 @@ bspshark/
 │   │   ├── lib.rs     # 路由注册
 │   │   ├── db.rs      # SqlitePool 初始化 + 迁移
 │   │   ├── error.rs   # AppError 枚举
-│   │   ├── models/    # 数据模型 (knowledge_tree, pitfall, task)
-│   │   └── handlers/  # HTTP 处理器 (knowledge_tree, tree_node, pitfall, task)
+│   │   ├── models/    # 数据模型 (knowledge_tree, experience, task)
+│   │   └── handlers/  # HTTP 处理器 (knowledge_tree, tree_node, experience, task)
 │   ├── tests/         # 集成测试
-│   ├── migrations/    # SQL 迁移 (001_initial_schema, 002_knowledge_system)
+│   ├── migrations/    # SQL 迁移 (001_initial_schema, 002_knowledge_system, 003_knowledge_instances, 004_remove_node_type_rename_experience)
 │   └── tools/         # 工具脚本 (python/, java/, bash/)
 └── Makefile           # 统一命令入口
 ```
@@ -79,31 +86,32 @@ make db-migrate     # 数据库迁移
 
 ### 核心设计思想
 
-- **全局知识树**: 以树形结构表示业务流程，主干是正常时序流程，分支是坑（错误）和异常场景
-- **坑是独立实体**: 坑独立存储，被多棵树的节点引用（多对多）。修改坑时所有引用处自动同步
-- **坑的生命周期**: `active` → `resolved`（已修复）/ `transformed`（变成了另一个坑），变更时附带说明
-- **自由嵌套**: 树节点不限层级，任何节点可以有子节点
-- **任务引用知识树**: 组长派任务时引用知识树节点，系统根据模块自动识别相关的坑
+- **全局知识树**: 以树形结构表示业务流程，主干由顶层同级节点（sort_order）决定，子节点为分支
+- **经验是独立实体**: 经验独立存储，被多棵树的节点引用（多对多）。修改经验时所有引用处自动同步
+- **经验的生命周期**: `active` → `resolved`（已修复）/ `transformed`（变成了另一个经验），变更时附带说明
+- **自由嵌套**: 树节点不限层级，任何节点可以有子节点，所有节点统一为"知识"
+- **任务引用知识树**: 组长派任务时引用知识树节点，系统根据模块自动识别相关的经验
 - **归档材料**: 任务可附加设计文档、串讲视频等链接（只存 URL，不做文件上传）
 
 ### 关键约束
 
 - **树节点排序**: `sort_order` 整数字段控制兄弟节点顺序
-- **坑的搜索**: 使用 LIKE 模糊搜索（title/description/tags），FTS5 虚拟表保留用于未来优化
-- **流程图可视化**: 使用 React Flow (`@xyflow/react`) + dagre 自动布局，只读展示 + 点击查看详情，编辑通过表单完成
-- **时序连线**: 同层级相邻 `step` 节点自动生成时序边（蓝色实线，高 weight），主干纵向流动；`pitfall_ref`/`exception` 从侧面（Left Handle）分支出去（虚线），dagre 通过 edge weight 优先对齐主干链
-- **三种节点类型**: `step`（流程步骤，蓝色，Top/Bottom Handle）、`pitfall_ref`（坑引用，红色虚线边，Left Handle）、`exception`（异常场景，橙色虚线动画边，Left Handle），各有不同视觉样式
-- **自动识别坑**: 创建任务时根据 modules 字段匹配 knowledge_trees → tree_nodes → pitfalls
+- **经验的搜索**: 使用 LIKE 模糊搜索（title/description/tags），FTS5 虚拟表保留用于未来优化
+- **流程图可视化**: 使用 React Flow (`@xyflow/react`)，水平布局，只读展示 + 点击查看详情，编辑通过表单完成
+- **统一节点样式**: 所有节点统一蓝色风格（`KnowledgeNode`），子节点用更浅色调区分层级
+- **展开/折叠**: 有子节点的知识可展开查看详细子节点，折叠时显示子节点总数
+- **泳道视图**: 展开节点如果有并行知识实例，自动切换为泳道布局
+- **自动识别经验**: 创建任务时根据 modules 字段匹配 knowledge_trees → tree_nodes → experiences
 - **级联删除**: 所有关联表 ON DELETE CASCADE
 
 ## 示例数据
 
 `populate_knowledge.sh` 脚本通过 curl 调用后端 API 批量填充 Linux 存储 I/O 全链路知识示例数据：
 
-- **25 个坑**: 覆盖 Linux 启动、SATA、存储、运行时保障四大主题
-- **1 棵知识树**: "Linux存储I/O全链路知识树"(`linux-storage-io`)，12 个顶层节点按时序排列：固件启动 → GRUB → 内核解压 → do_initcalls(含SATA初始化) → initrd → switch_root → systemd → 块设备层 → 文件系统挂载 → 运行时I/O → SATA运行时机制 → 运行时保障机制
-- **~70 个树节点**: 12 个顶层节点 + 子节点（含 3 层嵌套如 EH > 恢复或放弃 > pitfall_ref）
-- **25 条坑-节点关联**: 含跨节点引用（P6 fstab 同时被 systemd 和文件系统挂载引用）
+- **经验**: 覆盖 Linux 启动、SATA、存储、运行时保障四大主题
+- **1 棵知识树**: "Linux存储I/O全链路知识树"(`linux-storage-io`)，12 个顶层节点按时序排列
+- **~70 个树节点**: 12 个顶层节点 + 子节点（含多层嵌套）
+- **经验-节点关联**: 含跨节点引用（如 fstab 经验同时被 systemd 和文件系统挂载引用）
 - **3 个任务 + 5 个工件**: 任务 modules 统一为 `linux-storage-io`
 
 ```bash

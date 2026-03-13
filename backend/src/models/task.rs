@@ -10,7 +10,7 @@ pub struct Task {
     pub assigned_by: Option<String>,
     pub status: String,
     pub modules: String, // JSON array as string
-    pub discovered_pitfalls_notes: Option<String>,
+    pub discovered_experiences_notes: Option<String>,
     pub due_date: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -34,7 +34,7 @@ pub struct UpdateTask {
     pub assigned_by: Option<String>,
     pub status: Option<String>,
     pub modules: Option<Vec<String>>,
-    pub discovered_pitfalls_notes: Option<String>,
+    pub discovered_experiences_notes: Option<String>,
     pub due_date: Option<String>,
 }
 
@@ -68,11 +68,11 @@ pub struct NodeRef {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PitfallRef {
-    pub pitfall_id: String,
+pub struct ExperienceRef {
+    pub experience_id: String,
 }
 
-/// Task detail with related nodes, pitfalls, and artifacts
+/// Task detail with related nodes and artifacts
 #[derive(Debug, Serialize)]
 pub struct TaskDetail {
     #[serde(flatten)]

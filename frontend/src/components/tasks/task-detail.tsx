@@ -86,7 +86,7 @@ export function TaskDetailView({ task }: { task: TaskDetailType }) {
                     {node.title}
                   </Link>
                   <Badge variant="outline" className="text-xs">
-                    {node.node_type}
+                    知识
                   </Badge>
                 </li>
               ))}
@@ -123,13 +123,13 @@ export function TaskDetailView({ task }: { task: TaskDetailType }) {
         </Card>
       )}
 
-      {task.discovered_pitfalls_notes && (
+      {task.discovered_experiences_notes && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">发现的新坑</CardTitle>
+            <CardTitle className="text-base">发现的新经验</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="whitespace-pre-wrap">{task.discovered_pitfalls_notes}</p>
+            <p className="whitespace-pre-wrap">{task.discovered_experiences_notes}</p>
           </CardContent>
         </Card>
       )}

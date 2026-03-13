@@ -24,9 +24,9 @@ post() {
   curl -sf -X POST "$1" -H 'Content-Type: application/json' -d "$2" > /dev/null
 }
 
-echo "=== Phase 1: 创建 25 个坑 (Pitfalls) ==="
+echo "=== Phase 1: 创建 43 个经验 (Experiences) ==="
 
-P1=$(create "$API/pitfalls" '{
+P1=$(create "$API/experiences" '{
   "title": "initrd缺少关键内核模块",
   "description": "initramfs/initrd中未包含目标硬件所需的存储控制器驱动（如ahci、nvme），导致无法找到根文件系统。常见于自行编译内核后未正确配置mkinitcpio/dracut模块列表。",
   "severity": "high",
@@ -34,7 +34,7 @@ P1=$(create "$API/pitfalls" '{
 }')
 echo "P1=$P1 - initrd缺少关键内核模块"
 
-P2=$(create "$API/pitfalls" '{
+P2=$(create "$API/experiences" '{
   "title": "root=启动参数指定错误",
   "description": "GRUB或内核命令行中root=参数指向了错误的设备（如/dev/sda1 vs UUID不匹配），导致VFS: Cannot open root device。设备名可能因硬件变更或BIOS设置改变而漂移。",
   "severity": "high",
@@ -42,7 +42,7 @@ P2=$(create "$API/pitfalls" '{
 }')
 echo "P2=$P2 - root=启动参数指定错误"
 
-P3=$(create "$API/pitfalls" '{
+P3=$(create "$API/experiences" '{
   "title": "GRUB配置文件语法错误",
   "description": "grub.cfg或/etc/default/grub中存在语法错误（如引号不匹配、变量未转义），导致grub-mkconfig失败或GRUB菜单无法加载内核。update-grub不报错但生成的配置无效。",
   "severity": "medium",
@@ -50,7 +50,7 @@ P3=$(create "$API/pitfalls" '{
 }')
 echo "P3=$P3 - GRUB配置文件语法错误"
 
-P4=$(create "$API/pitfalls" '{
+P4=$(create "$API/experiences" '{
   "title": "dracut配置导致initramfs过大或缺模块",
   "description": "dracut.conf配置了hostonly=no导致initramfs包含所有驱动体积过大，或hostonly=yes但omit_dracutmodules排除了必要模块。嵌入式设备上initramfs过大会显著拖慢启动速度。",
   "severity": "medium",
@@ -58,7 +58,7 @@ P4=$(create "$API/pitfalls" '{
 }')
 echo "P4=$P4 - dracut配置导致initramfs过大或缺模块"
 
-P5=$(create "$API/pitfalls" '{
+P5=$(create "$API/experiences" '{
   "title": "内核模块加载顺序导致设备未就绪",
   "description": "某些驱动依赖其他子系统先初始化（如SCSI层需要先于具体HBA驱动），initrd中模块加载顺序不当导致probe失败。表现为偶发性启动失败，重启后可能正常。",
   "severity": "medium",
@@ -66,7 +66,7 @@ P5=$(create "$API/pitfalls" '{
 }')
 echo "P5=$P5 - 内核模块加载顺序导致设备未就绪"
 
-P6=$(create "$API/pitfalls" '{
+P6=$(create "$API/experiences" '{
   "title": "fstab配置错误导致启动挂载失败",
   "description": "/etc/fstab中UUID写错、挂载选项不兼容（如noauto被误删、nofail缺失），导致systemd挂载单元失败。若根分区以外的分区缺少nofail选项，会触发emergency模式。",
   "severity": "high",
@@ -74,7 +74,7 @@ P6=$(create "$API/pitfalls" '{
 }')
 echo "P6=$P6 - fstab配置错误导致启动挂载失败"
 
-P7=$(create "$API/pitfalls" '{
+P7=$(create "$API/experiences" '{
   "title": "systemd服务循环依赖",
   "description": "自定义systemd unit之间存在循环依赖（A Requires B, B After A），导致启动超时或死锁。journalctl可见ordering cycle警告但系统仍尝试启动，表现为服务启动极慢。",
   "severity": "medium",
@@ -82,7 +82,7 @@ P7=$(create "$API/pitfalls" '{
 }')
 echo "P7=$P7 - systemd服务循环依赖"
 
-P8=$(create "$API/pitfalls" '{
+P8=$(create "$API/experiences" '{
   "title": "启动阶段OOM导致panic",
   "description": "内核启动早期内存不足（嵌入式设备RAM小、或内核参数mem=限制了可用内存），init进程或关键服务被OOM Killer杀死，系统直接panic。需调整内核内存参数或精简initrd。",
   "severity": "high",
@@ -90,7 +90,7 @@ P8=$(create "$API/pitfalls" '{
 }')
 echo "P8=$P8 - 启动阶段OOM导致panic"
 
-P9=$(create "$API/pitfalls" '{
+P9=$(create "$API/experiences" '{
   "title": "VFS: Unable to mount root fs panic",
   "description": "内核在switch_root阶段找不到根文件系统，直接kernel panic。根因可能是：initrd缺驱动、root=参数错、文件系统损坏、或块设备未被内核识别。需结合dmesg和initrd内容排查。",
   "severity": "high",
@@ -98,7 +98,7 @@ P9=$(create "$API/pitfalls" '{
 }')
 echo "P9=$P9 - VFS: Unable to mount root fs panic"
 
-P10=$(create "$API/pitfalls" '{
+P10=$(create "$API/experiences" '{
   "title": "SATA链路训练超时",
   "description": "AHCI端口在执行OOB(Out of Band)信号和速率协商时超时，表现为ata*: link is slow to respond / SATA link down。常见原因：线缆质量差、信号完整性问题、PHY参数不匹配、或SSD固件兼容性问题。",
   "severity": "high",
@@ -106,7 +106,7 @@ P10=$(create "$API/pitfalls" '{
 }')
 echo "P10=$P10 - SATA链路训练超时"
 
-P11=$(create "$API/pitfalls" '{
+P11=$(create "$API/experiences" '{
   "title": "AHCI控制器未被内核识别",
   "description": "PCI枚举阶段未匹配到AHCI驱动，可能因为：PCI Vendor/Device ID不在ahci_pci_tbl中、BIOS设置为IDE/RAID模式而非AHCI、或AHCI BAR空间未正确映射。lspci能看到设备但/dev/下无对应节点。",
   "severity": "high",
@@ -114,7 +114,7 @@ P11=$(create "$API/pitfalls" '{
 }')
 echo "P11=$P11 - AHCI控制器未被内核识别"
 
-P12=$(create "$API/pitfalls" '{
+P12=$(create "$API/experiences" '{
   "title": "NCQ命令错误导致性能下降",
   "description": "磁盘报告NCQ(Native Command Queuing)错误后，libata将队列深度降为1并可能禁用NCQ，导致I/O性能急剧下降。dmesg可见ata*: NCQ disabled due to excessive errors。需排查磁盘固件或更换磁盘。",
   "severity": "medium",
@@ -122,7 +122,7 @@ P12=$(create "$API/pitfalls" '{
 }')
 echo "P12=$P12 - NCQ命令错误导致性能下降"
 
-P13=$(create "$API/pitfalls" '{
+P13=$(create "$API/experiences" '{
   "title": "SATA热插拔导致数据丢失",
   "description": "在未正确实现热插拔通知（SNotification）的控制器上执行热插拔，可能导致：正在写入的数据丢失、文件系统元数据不一致、或内核误判端口状态。需确认控制器支持热插拔并正确配置AHCI CAP.SSS位。",
   "severity": "high",
@@ -130,7 +130,7 @@ P13=$(create "$API/pitfalls" '{
 }')
 echo "P13=$P13 - SATA热插拔导致数据丢失"
 
-P14=$(create "$API/pitfalls" '{
+P14=$(create "$API/experiences" '{
   "title": "ALPM节能模式导致链路不稳定",
   "description": "启用Aggressive Link Power Management(ALPM)后，SATA链路在Partial/Slumber状态切换时出现链路错误，表现为频繁的COMRESET和设备重新初始化。某些SSD/HDD固件对ALPM支持不完善，需通过/sys/class/scsi_host/*/link_power_management_policy调整。",
   "severity": "medium",
@@ -138,7 +138,7 @@ P14=$(create "$API/pitfalls" '{
 }')
 echo "P14=$P14 - ALPM节能模式导致链路不稳定"
 
-P15=$(create "$API/pitfalls" '{
+P15=$(create "$API/experiences" '{
   "title": "DevSleep唤醒失败",
   "description": "从DevSleep深度节能状态唤醒时，设备未在规定时间内响应COMWAKE信号，导致端口reset超时。部分SSD的DevSleep实现不符合SATA规范3.2+的时序要求，需在AHCI驱动中禁用DevSleep或增加超时。",
   "severity": "medium",
@@ -146,7 +146,7 @@ P15=$(create "$API/pitfalls" '{
 }')
 echo "P15=$P15 - DevSleep唤醒失败"
 
-P16=$(create "$API/pitfalls" '{
+P16=$(create "$API/experiences" '{
   "title": "FIS接收错误（CRC/Disparity）",
   "description": "SATA链路接收到的FIS(Frame Information Structure)校验失败，SError寄存器显示CRC错误或Disparity错误。通常指示物理层问题：线缆、连接器、PCB走线信号完整性。少量错误可由EH恢复，持续错误需更换硬件。",
   "severity": "medium",
@@ -154,7 +154,7 @@ P16=$(create "$API/pitfalls" '{
 }')
 echo "P16=$P16 - FIS接收错误"
 
-P17=$(create "$API/pitfalls" '{
+P17=$(create "$API/experiences" '{
   "title": "SATA命令超时后连续reset无法恢复",
   "description": "命令超时触发EH(Error Handler)后，soft reset → hard reset → port reset均失败，设备最终被标记为offline(disabled)。根因可能是固件挂死、硬件故障、或PHY彻底断开。恢复需重新scan或物理重新插拔。",
   "severity": "high",
@@ -162,7 +162,7 @@ P17=$(create "$API/pitfalls" '{
 }')
 echo "P17=$P17 - SATA命令超时后连续reset无法恢复"
 
-P18=$(create "$API/pitfalls" '{
+P18=$(create "$API/experiences" '{
   "title": "掉电导致文件系统损坏",
   "description": "非正常关机（掉电、内核panic）导致ext4/xfs文件系统元数据不一致。ext4日志可恢复大部分情况，但若日志本身损坏则需fsck。btrfs/ZFS的COW机制更抗掉电但需正确配置flush/barrier。",
   "severity": "high",
@@ -170,7 +170,7 @@ P18=$(create "$API/pitfalls" '{
 }')
 echo "P18=$P18 - 掉电导致文件系统损坏"
 
-P19=$(create "$API/pitfalls" '{
+P19=$(create "$API/experiences" '{
   "title": "I/O调度器选择不当影响性能",
   "description": "HDD使用none调度器导致大量随机I/O时性能极差（应用mq-deadline或bfq），SSD使用cfq导致不必要的合并开销。内核5.0+默认使用多队列调度器，但某些发行版可能覆盖默认设置。",
   "severity": "low",
@@ -178,7 +178,7 @@ P19=$(create "$API/pitfalls" '{
 }')
 echo "P19=$P19 - I/O调度器选择不当影响性能"
 
-P20=$(create "$API/pitfalls" '{
+P20=$(create "$API/experiences" '{
   "title": "持续I/O错误导致文件系统被强制离线",
   "description": "底层块设备持续报告I/O错误（如磁盘坏道、控制器故障），文件系统错误计数达到阈值后被内核标记为只读或卸载。ext4通过errors=remount-ro挂载选项控制此行为，生产环境应配合监控及时发现。",
   "severity": "high",
@@ -186,7 +186,7 @@ P20=$(create "$API/pitfalls" '{
 }')
 echo "P20=$P20 - I/O错误导致文件系统离线"
 
-P21=$(create "$API/pitfalls" '{
+P21=$(create "$API/experiences" '{
   "title": "ext4 journal replay失败",
   "description": "挂载ext4时日志回放失败（journal checksum error / journal has been aborted），文件系统无法挂载。可能因磁盘坏道影响日志区域，或内核版本升级导致日志格式不兼容。需用e2fsck -fy强制修复，可能丢失数据。",
   "severity": "high",
@@ -194,7 +194,7 @@ P21=$(create "$API/pitfalls" '{
 }')
 echo "P21=$P21 - ext4 journal replay失败"
 
-P22=$(create "$API/pitfalls" '{
+P22=$(create "$API/experiences" '{
   "title": "OOM Killer误杀关键进程",
   "description": "系统内存不足时OOM Killer根据oom_score选择进程kill，但可能误杀数据库或关键服务而非真正的内存泄漏进程。需通过oom_score_adj (-1000)保护关键进程，或配置cgroup内存限制隔离。",
   "severity": "high",
@@ -202,7 +202,7 @@ P22=$(create "$API/pitfalls" '{
 }')
 echo "P22=$P22 - OOM Killer误杀关键进程"
 
-P23=$(create "$API/pitfalls" '{
+P23=$(create "$API/experiences" '{
   "title": "softlockup误报干扰排查",
   "description": "内核检测到CPU长时间不调度（默认20秒），报告BUG: soft lockup，但实际可能是正常的长时间计算（如大内存页面清零、加密运算）。误报导致运维误判为内核bug。可通过kernel.softlockup_panic=0和调整阈值减少影响。",
   "severity": "low",
@@ -210,7 +210,7 @@ P23=$(create "$API/pitfalls" '{
 }')
 echo "P23=$P23 - softlockup误报干扰排查"
 
-P24=$(create "$API/pitfalls" '{
+P24=$(create "$API/experiences" '{
   "title": "hardlockup检测在虚拟机中不可用",
   "description": "hardlockup检测依赖NMI(Non-Maskable Interrupt)和PMU(Performance Monitoring Unit)，但在KVM/VMware等虚拟化环境中PMU可能未暴露给Guest，导致hardlockup watchdog初始化失败。需在hypervisor层配置PMU直通。",
   "severity": "low",
@@ -218,7 +218,7 @@ P24=$(create "$API/pitfalls" '{
 }')
 echo "P24=$P24 - hardlockup检测在虚拟机中不可用"
 
-P25=$(create "$API/pitfalls" '{
+P25=$(create "$API/experiences" '{
   "title": "kdump采集失败无法分析panic",
   "description": "内核panic时kexec未能成功启动capture kernel，导致vmcore未生成，无法事后分析。常见原因：crashkernel=预留内存不足（建议256M+）、kdump服务未正确配置、或capture kernel本身缺少必要驱动。",
   "severity": "high",
@@ -226,7 +226,7 @@ P25=$(create "$API/pitfalls" '{
 }')
 echo "P25=$P25 - kdump采集失败无法分析panic"
 
-P26=$(create "$API/pitfalls" '{
+P26=$(create "$API/experiences" '{
   "title": "UEFI Secure Boot签名验证失败",
   "description": "UEFI Secure Boot开启时，未签名或签名不匹配的bootloader/内核镜像被拒绝加载。常见于自编译内核未用MOK(Machine Owner Key)签名、或第三方驱动模块未签名导致加载失败。需通过mokutil注册密钥或在BIOS中关闭Secure Boot。",
   "severity": "high",
@@ -234,7 +234,7 @@ P26=$(create "$API/pitfalls" '{
 }')
 echo "P26=$P26 - UEFI Secure Boot签名验证失败"
 
-P27=$(create "$API/pitfalls" '{
+P27=$(create "$API/experiences" '{
   "title": "BIOS中SATA模式配置为IDE/RAID",
   "description": "BIOS中SATA控制器模式未设置为AHCI（而是IDE兼容模式或RAID模式），导致Linux内核加载ahci驱动时无法匹配PCI设备class code。IDE模式下性能大幅降低且不支持NCQ/热插拔，RAID模式需要特定的mdraid/dmraid驱动。",
   "severity": "medium",
@@ -242,7 +242,7 @@ P27=$(create "$API/pitfalls" '{
 }')
 echo "P27=$P27 - BIOS中SATA模式配置为IDE/RAID"
 
-P28=$(create "$API/pitfalls" '{
+P28=$(create "$API/experiences" '{
   "title": "libata SAT翻译层命令不兼容",
   "description": "libata的SCSI-ATA Translation(SAT)层将SCSI命令翻译为ATA命令时，某些厂商特定ATA命令或非标准SCSI扩展无法正确翻译，导致设备管理工具(hdparm/smartctl)返回错误或功能异常。常见于老旧PATA设备或特殊工业级SSD。",
   "severity": "medium",
@@ -250,7 +250,7 @@ P28=$(create "$API/pitfalls" '{
 }')
 echo "P28=$P28 - libata SAT翻译层命令不兼容"
 
-P29=$(create "$API/pitfalls" '{
+P29=$(create "$API/experiences" '{
   "title": "IDENTIFY DEVICE返回数据异常",
   "description": "SATA设备在IDENTIFY DEVICE命令返回的512字节数据中，关键字段（如扇区大小、NCQ队列深度、TRIM支持位）报告不准确或与实际能力不符。导致内核误判设备能力，如将4K扇区设备当作512B处理引发对齐问题，或启用设备实际不支持的NCQ深度。",
   "severity": "medium",
@@ -258,7 +258,7 @@ P29=$(create "$API/pitfalls" '{
 }')
 echo "P29=$P29 - IDENTIFY DEVICE返回数据异常"
 
-P30=$(create "$API/pitfalls" '{
+P30=$(create "$API/experiences" '{
   "title": "GPT备份分区表损坏",
   "description": "GPT分区方案在磁盘首尾各存一份分区表，当磁盘末尾区域出现坏道或被意外覆盖时，备份分区表损坏。gdisk/parted会报告backup GPT header corrupt警告。虽然主分区表正常时不影响使用，但失去了冗余保护，应及时用gdisk repair修复。",
   "severity": "medium",
@@ -266,7 +266,7 @@ P30=$(create "$API/pitfalls" '{
 }')
 echo "P30=$P30 - GPT备份分区表损坏"
 
-P31=$(create "$API/pitfalls" '{
+P31=$(create "$API/experiences" '{
   "title": "blk-mq CPU亲和性配置不当",
   "description": "blk-mq的硬件队列到CPU的映射(irq affinity)配置不合理，导致I/O请求集中在少数CPU核上处理，无法充分利用多核并行能力。在NUMA架构下，跨节点的队列分配还会引入额外延迟。需通过irqbalance或手动设置/proc/irq/*/smp_affinity优化。",
   "severity": "low",
@@ -274,7 +274,7 @@ P31=$(create "$API/pitfalls" '{
 }')
 echo "P31=$P31 - blk-mq CPU亲和性配置不当"
 
-P32=$(create "$API/pitfalls" '{
+P32=$(create "$API/experiences" '{
   "title": "文件系统magic number误识别",
   "description": "blkid/mount在探测文件系统类型时，残留的旧文件系统superblock magic number导致误识别。例如在ext4分区上重新格式化为xfs后，若未wipefs清除旧签名，mount -t auto可能尝试用错误的文件系统类型挂载。应在格式化前执行wipefs -a清除所有签名。",
   "severity": "low",
@@ -282,7 +282,7 @@ P32=$(create "$API/pitfalls" '{
 }')
 echo "P32=$P32 - 文件系统magic number误识别"
 
-P33=$(create "$API/pitfalls" '{
+P33=$(create "$API/experiences" '{
   "title": "umount时busy设备无法卸载",
   "description": "umount报告target is busy，因为有进程的工作目录在挂载点内、文件被打开、或存在loop设备/bind mount引用。lsof/fuser可定位占用进程，但在容器环境中mount namespace隔离使排查复杂化。umount -l(lazy unmount)可延迟卸载但可能导致数据不一致。",
   "severity": "medium",
@@ -290,7 +290,7 @@ P33=$(create "$API/pitfalls" '{
 }')
 echo "P33=$P33 - umount时busy设备无法卸载"
 
-P34=$(create "$API/pitfalls" '{
+P34=$(create "$API/experiences" '{
   "title": "DFX调试开启后性能严重下降",
   "description": "开启libata动态调试(echo 1 > /sys/module/libata/parameters/*)或blktrace全量跟踪后，由于printk输出和trace buffer写入的开销，I/O延迟显著增加甚至触发命令超时。在生产环境调试时应限制跟踪范围和时长，优先使用eBPF等低开销工具。",
   "severity": "low",
@@ -298,7 +298,7 @@ P34=$(create "$API/pitfalls" '{
 }')
 echo "P34=$P34 - DFX调试开启后性能严重下降"
 
-P35=$(create "$API/pitfalls" '{
+P35=$(create "$API/experiences" '{
   "title": "EH错误分类误判导致不必要reset",
   "description": "libata EH在分析错误时，将可恢复的瞬态错误（如偶发CRC错误）误分类为需要hard reset的严重错误，导致不必要的端口重置和I/O中断。频繁的误判reset会显著影响I/O吞吐量和延迟。需要微调ata_eh_analyze_tf()的分类逻辑。",
   "severity": "medium",
@@ -306,7 +306,7 @@ P35=$(create "$API/pitfalls" '{
 }')
 echo "P35=$P35 - EH错误分类误判导致不必要reset"
 
-P36=$(create "$API/pitfalls" '{
+P36=$(create "$API/experiences" '{
   "title": "EH Reset后设备参数丢失需重配",
   "description": "SATA设备在EH hard reset后，之前通过SET FEATURES命令配置的参数（如写缓存开关、APM级别、读lookahead等）被设备复位为出厂默认值。libata的ata_dev_revalidate()虽会重新读取IDENTIFY信息，但部分运行时配置未被恢复，导致性能退化或行为改变。",
   "severity": "medium",
@@ -314,7 +314,7 @@ P36=$(create "$API/pitfalls" '{
 }')
 echo "P36=$P36 - EH Reset后设备参数丢失需重配"
 
-P37=$(create "$API/pitfalls" '{
+P37=$(create "$API/experiences" '{
   "title": "PCIe AER中断风暴",
   "description": "PCIe设备持续报告Correctable Error（如Bad TLP、Receiver Error），AER驱动频繁触发中断处理和日志记录，占用大量CPU时间形成中断风暴。根因通常是PCIe链路信号质量问题或设备固件bug。需通过setpci屏蔽特定错误位或降低PCIe链路速率缓解。",
   "severity": "high",
@@ -322,7 +322,7 @@ P37=$(create "$API/pitfalls" '{
 }')
 echo "P37=$P37 - PCIe AER中断风暴"
 
-P38=$(create "$API/pitfalls" '{
+P38=$(create "$API/experiences" '{
   "title": "UEFI固件PCI资源分配冲突",
   "description": "UEFI固件在PCI枚举阶段为设备分配BAR空间时发生冲突（MMIO地址重叠、I/O端口不足），导致部分PCI设备的BAR未被正确映射。Linux内核pci_assign_resource()尝试重新分配但可能因地址空间碎片化失败。常见于多GPU或大量PCIe扩展卡场景。",
   "severity": "medium",
@@ -330,7 +330,7 @@ P38=$(create "$API/pitfalls" '{
 }')
 echo "P38=$P38 - UEFI固件PCI资源分配冲突"
 
-P39=$(create "$API/pitfalls" '{
+P39=$(create "$API/experiences" '{
   "title": "libata EH与SCSI EH竞争导致死锁",
   "description": "当SATA命令超时同时触发libata EH和SCSI层的错误恢复时，两个EH子系统可能因锁竞争（ap->lock vs shost->host_lock）产生死锁。表现为I/O完全卡死，需SysRq或硬重启恢复。内核5.15+已修复大部分竞争场景，但自定义SCSI命令仍可能触发。",
   "severity": "high",
@@ -338,7 +338,7 @@ P39=$(create "$API/pitfalls" '{
 }')
 echo "P39=$P39 - libata EH与SCSI EH竞争导致死锁"
 
-P40=$(create "$API/pitfalls" '{
+P40=$(create "$API/experiences" '{
   "title": "Page Cache回写风暴导致I/O延迟飙升",
   "description": "大量写入操作导致Page Cache脏页积累超过dirty_ratio阈值，触发同步回写(writeback)，所有写入进程被阻塞等待脏页刷盘。在慢速存储(HDD/网络存储)上尤为严重，表现为周期性I/O延迟尖刺。需调整dirty_ratio/dirty_background_ratio或使用cgroup io限速。",
   "severity": "medium",
@@ -346,7 +346,7 @@ P40=$(create "$API/pitfalls" '{
 }')
 echo "P40=$P40 - Page Cache回写风暴导致I/O延迟飙升"
 
-P41=$(create "$API/pitfalls" '{
+P41=$(create "$API/experiences" '{
   "title": "TRIM/Discard命令导致SSD卡顿",
   "description": "对SSD执行大量discard操作（如fstrim或mount -o discard）时，某些SSD固件处理TRIM命令需要较长时间（数百毫秒），期间I/O响应延迟显著增加。建议使用fstrim定时任务替代实时discard，并通过ionice限制fstrim优先级。",
   "severity": "medium",
@@ -354,7 +354,7 @@ P41=$(create "$API/pitfalls" '{
 }')
 echo "P41=$P41 - TRIM/Discard命令导致SSD卡顿"
 
-P42=$(create "$API/pitfalls" '{
+P42=$(create "$API/experiences" '{
   "title": "内核decompression失败silent hang",
   "description": "压缩内核镜像(vmlinuz)在自解压阶段失败（如镜像损坏、解压算法不匹配、或解压目标地址与已用内存冲突），系统直接挂起(hang)无任何输出。由于此时console尚未初始化，无法通过串口看到任何错误信息。需通过未压缩内核(vmlinux)或earlycon参数排查。",
   "severity": "high",
@@ -362,7 +362,7 @@ P42=$(create "$API/pitfalls" '{
 }')
 echo "P42=$P42 - 内核decompression失败silent hang"
 
-P43=$(create "$API/pitfalls" '{
+P43=$(create "$API/experiences" '{
   "title": "systemd-udevd规则冲突导致设备节点异常",
   "description": "多条udev规则同时匹配同一设备且定义了冲突的操作（如不同的NAME/SYMLINK/OWNER），导致设备节点权限错误、符号链接缺失或设备名不稳定。常见于自定义规则与发行版预装规则的优先级冲突。用udevadm test可模拟规则匹配结果进行排查。",
   "severity": "medium",
@@ -390,42 +390,11 @@ echo "--- so:0 固件启动 ---"
 
 N0=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"固件启动(BIOS/UEFI)\",
   \"description\": \"加电自检(POST)、硬件初始化、枚举PCI设备、选择启动设备。UEFI模式通过ESP分区加载EFI应用程序。\",
   \"sort_order\": 0
 }")
 echo "N0=$N0 - 固件启动(BIOS/UEFI)"
-
-N0_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N0\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"UEFI Secure Boot签名验证失败\",
-  \"description\": \"Secure Boot开启时未签名的bootloader/内核被拒绝加载。\",
-  \"sort_order\": 0
-}")
-echo "  N0_PR1=$N0_PR1 - Secure Boot签名失败坑引用"
-
-N0_PR2=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N0\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"BIOS SATA模式配置为IDE/RAID\",
-  \"description\": \"SATA控制器未设为AHCI模式导致驱动不匹配或性能下降。\",
-  \"sort_order\": 1
-}")
-echo "  N0_PR2=$N0_PR2 - SATA模式配置坑引用"
-
-N0_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N0\",
-  \"node_type\": \"exception\",
-  \"title\": \"UEFI PCI资源分配冲突\",
-  \"description\": \"固件PCI枚举时BAR空间冲突导致设备映射失败。\",
-  \"sort_order\": 2
-}")
-echo "  N0_EX1=$N0_EX1 - PCI资源冲突异常"
 
 # ═══════════════════════════════════════
 # so:1 GRUB2引导加载
@@ -434,32 +403,11 @@ echo "--- so:1 GRUB2引导加载 ---"
 
 N1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"GRUB2引导加载\",
   \"description\": \"GRUB从ESP或MBR加载，读取grub.cfg，显示启动菜单，加载内核镜像(vmlinuz)和initrd到内存。\",
   \"sort_order\": 1
 }")
 echo "N1=$N1 - GRUB2引导加载"
-
-N1_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N1\",
-  \"node_type\": \"exception\",
-  \"title\": \"GRUB配置错误导致引导失败\",
-  \"description\": \"grub.cfg语法错误、内核路径写错、或grub-install未正确写入引导扇区。\",
-  \"sort_order\": 0
-}")
-echo "  N1_EX1=$N1_EX1 - GRUB配置异常"
-
-N1_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N1\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"root=参数指定错误\",
-  \"description\": \"GRUB传给内核的root=参数不正确，后续将导致VFS panic。\",
-  \"sort_order\": 1
-}")
-echo "  N1_PR1=$N1_PR1 - root=参数坑引用"
 
 # GRUB 实例节点（Ubuntu / Arch）—— 保留不变
 INST_UBUNTU=$(create "$API/knowledge-instances" "{
@@ -479,7 +427,6 @@ echo "INST_ARCH=$INST_ARCH - Arch Linux 实例"
 N1_U1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N1\",
-  \"node_type\": \"step\",
   \"title\": \"apt install grub-efi\",
   \"description\": \"通过 apt 安装 GRUB EFI 版本\",
   \"sort_order\": 10
@@ -489,7 +436,6 @@ echo "  N1_U1=$N1_U1 - apt install grub-efi"
 N1_U2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N1\",
-  \"node_type\": \"step\",
   \"title\": \"update-grub 生成配置\",
   \"description\": \"运行 update-grub 自动扫描内核并生成 grub.cfg\",
   \"sort_order\": 11
@@ -499,7 +445,6 @@ echo "  N1_U2=$N1_U2 - update-grub"
 N1_U3=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N1\",
-  \"node_type\": \"step\",
   \"title\": \"验证引导项\",
   \"description\": \"检查 /boot/grub/grub.cfg 中的 menuentry 是否正确\",
   \"sort_order\": 12
@@ -509,7 +454,6 @@ echo "  N1_U3=$N1_U3 - 验证引导项(Ubuntu)"
 N1_A1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N1\",
-  \"node_type\": \"step\",
   \"title\": \"pacman -S grub efibootmgr\",
   \"description\": \"通过 pacman 安装 GRUB 和 EFI 引导管理器\",
   \"sort_order\": 20
@@ -519,7 +463,6 @@ echo "  N1_A1=$N1_A1 - pacman install grub"
 N1_A2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N1\",
-  \"node_type\": \"step\",
   \"title\": \"grub-install --target=x86_64-efi\",
   \"description\": \"安装 GRUB 到 EFI 系统分区\",
   \"sort_order\": 21
@@ -529,7 +472,6 @@ echo "  N1_A2=$N1_A2 - grub-install"
 N1_A3=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N1\",
-  \"node_type\": \"step\",
   \"title\": \"grub-mkconfig -o /boot/grub/grub.cfg\",
   \"description\": \"生成 GRUB 配置文件\",
   \"sort_order\": 22
@@ -539,7 +481,6 @@ echo "  N1_A3=$N1_A3 - grub-mkconfig"
 N1_A4=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N1\",
-  \"node_type\": \"step\",
   \"title\": \"配置 fallback initramfs\",
   \"description\": \"确保 mkinitcpio 生成 fallback initramfs 作为备用\",
   \"sort_order\": 23
@@ -570,32 +511,11 @@ echo "--- so:2 内核解压与早期初始化 ---"
 
 N2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"内核解压与早期初始化\",
   \"description\": \"内核自解压(decompress_kernel)，设置页表、初始化内存管理(memblock)、解析cmdline参数、初始化console输出。\",
   \"sort_order\": 2
 }")
 echo "N2=$N2 - 内核解压与早期初始化"
-
-N2_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N2\",
-  \"node_type\": \"exception\",
-  \"title\": \"启动阶段OOM导致panic\",
-  \"description\": \"内核启动早期内存不足，init进程或关键服务被OOM Killer杀死。\",
-  \"sort_order\": 0
-}")
-echo "  N2_EX1=$N2_EX1 - 启动阶段OOM异常"
-
-N2_EX2=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N2\",
-  \"node_type\": \"exception\",
-  \"title\": \"内核解压失败silent hang\",
-  \"description\": \"压缩内核自解压阶段失败，系统挂起无任何输出。\",
-  \"sort_order\": 1
-}")
-echo "  N2_EX2=$N2_EX2 - 内核解压失败异常"
 
 # ═══════════════════════════════════════
 # so:3 内核子系统初始化(do_initcalls) ★ SATA 初始化内联
@@ -604,113 +524,48 @@ echo "--- so:3 内核子系统初始化(do_initcalls) ---"
 
 N3=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"内核子系统初始化(do_initcalls)\",
   \"description\": \"start_kernel()→rest_init()：初始化调度器、中断、PCI总线、SCSI子系统、网络协议栈。按initcall级别依次调用驱动的module_init。SATA/AHCI驱动在此阶段完成probe和设备识别。\",
   \"sort_order\": 3
 }")
 echo "N3=$N3 - 内核子系统初始化(do_initcalls)"
 
-N3_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N3\",
-  \"node_type\": \"exception\",
-  \"title\": \"模块加载顺序导致probe失败\",
-  \"description\": \"initcall级别不当或模块间依赖未声明，导致驱动probe时依赖的子系统尚未就绪。\",
-  \"sort_order\": 0
-}")
-echo "  N3_EX1=$N3_EX1 - 模块加载顺序异常"
-
 # SATA 子步骤（内联到 do_initcalls）
 N3_S1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N3\",
-  \"node_type\": \"step\",
   \"title\": \"libata框架注册\",
   \"description\": \"libata作为Linux SATA/PATA的统一框架，在内核初始化阶段注册SCSI host template。提供ATA命令翻译层(SAT)、错误处理框架、电源管理接口。\",
   \"sort_order\": 1
 }")
 echo "  N3_S1=$N3_S1 - libata框架注册"
 
-N3_S1_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N3_S1\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"SAT翻译层命令不兼容\",
-  \"description\": \"SCSI-ATA Translation层无法正确翻译某些厂商特定命令。\",
-  \"sort_order\": 0
-}")
-echo "    N3_S1_PR1=$N3_S1_PR1 - SAT命令不兼容坑引用"
-
 N3_S2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N3\",
-  \"node_type\": \"step\",
   \"title\": \"AHCI PCI Probe\",
   \"description\": \"ahci驱动匹配PCI Vendor/Device ID，映射AHCI BAR空间，读取HBA Capabilities(CAP)寄存器，初始化每个端口的Command List和FIS Receive区域。\",
   \"sort_order\": 2
 }")
 echo "  N3_S2=$N3_S2 - AHCI PCI Probe"
 
-N3_S2_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N3_S2\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"AHCI控制器PCI ID不匹配\",
-  \"description\": \"新AHCI控制器的PCI ID未加入ahci_pci_tbl，或BIOS设置为非AHCI模式。\",
-  \"sort_order\": 0
-}")
-echo "    N3_S2_PR1=$N3_S2_PR1 - AHCI未识别坑引用"
-
 N3_S3=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N3\",
-  \"node_type\": \"step\",
   \"title\": \"SATA端口链路建立\",
   \"description\": \"AHCI端口执行COMRESET发起OOB信号序列，与设备进行速率协商(Gen1/2/3)，建立SATA物理链路。成功后端口状态从offline变为online。\",
   \"sort_order\": 3
 }")
 echo "  N3_S3=$N3_S3 - SATA端口链路建立"
 
-N3_S3_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N3_S3\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"SATA链路训练超时\",
-  \"description\": \"OOB信号序列或速率协商失败导致链路无法建立。\",
-  \"sort_order\": 0
-}")
-echo "    N3_S3_PR1=$N3_S3_PR1 - 链路训练超时坑引用"
-
-N3_S3_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N3_S3\",
-  \"node_type\": \"exception\",
-  \"title\": \"FIS接收CRC错误\",
-  \"description\": \"物理层信号完整性问题导致FIS校验失败，影响链路稳定性。\",
-  \"sort_order\": 1
-}")
-echo "    N3_S3_EX1=$N3_S3_EX1 - FIS接收CRC错误异常"
-
 N3_S4=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N3\",
-  \"node_type\": \"step\",
   \"title\": \"SATA设备识别(IDENTIFY DEVICE)\",
   \"description\": \"链路建立后发送IDENTIFY DEVICE/IDENTIFY PACKET DEVICE命令，获取设备型号、固件版本、容量、支持的特性(NCQ/TRIM/APM等)，注册SCSI设备(sd*)。\",
   \"sort_order\": 4
 }")
 echo "  N3_S4=$N3_S4 - SATA设备识别"
-
-N3_S4_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N3_S4\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"IDENTIFY DEVICE返回数据异常\",
-  \"description\": \"设备IDENTIFY信息中关键字段报告不准确导致内核误判设备能力。\",
-  \"sort_order\": 0
-}")
-echo "    N3_S4_PR1=$N3_S4_PR1 - IDENTIFY数据异常坑引用"
 
 # ═══════════════════════════════════════
 # so:4 initrd/initramfs加载
@@ -719,32 +574,11 @@ echo "--- so:4 initrd/initramfs加载 ---"
 
 N4=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"initrd/initramfs加载\",
   \"description\": \"内核解压initramfs到rootfs(tmpfs)，执行/init脚本。initrd负责加载根文件系统所需的驱动（存储、文件系统模块），并准备switch_root环境。\",
   \"sort_order\": 4
 }")
 echo "N4=$N4 - initrd/initramfs加载"
-
-N4_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N4\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"initrd缺少关键驱动\",
-  \"description\": \"initramfs未包含目标存储控制器驱动，导致无法发现根设备。\",
-  \"sort_order\": 0
-}")
-echo "  N4_PR1=$N4_PR1 - initrd缺模块坑引用"
-
-N4_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N4\",
-  \"node_type\": \"exception\",
-  \"title\": \"dracut/mkinitcpio配置不当\",
-  \"description\": \"dracut hostonly模式遗漏模块、或mkinitcpio HOOKS配置错误，导致生成的initramfs不完整。\",
-  \"sort_order\": 1
-}")
-echo "  N4_EX1=$N4_EX1 - dracut配置异常"
 
 # ═══════════════════════════════════════
 # so:5 rootfs切换(switch_root)
@@ -753,22 +587,11 @@ echo "--- so:5 rootfs切换 ---"
 
 N5=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"rootfs切换(switch_root)\",
   \"description\": \"initrd中的init脚本挂载真正的根文件系统，通过switch_root或pivot_root切换根目录，释放initramfs内存。\",
   \"sort_order\": 5
 }")
 echo "N5=$N5 - rootfs切换"
-
-N5_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N5\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"VFS无法挂载根文件系统\",
-  \"description\": \"switch_root阶段找不到根文件系统，导致kernel panic。\",
-  \"sort_order\": 0
-}")
-echo "  N5_PR1=$N5_PR1 - VFS panic坑引用"
 
 # ═══════════════════════════════════════
 # so:6 systemd用户态初始化
@@ -777,42 +600,11 @@ echo "--- so:6 systemd用户态初始化 ---"
 
 N6=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"systemd用户态初始化\",
   \"description\": \"PID 1(systemd)接管，按依赖关系并行启动服务单元。挂载fstab中的文件系统、启动网络、登录管理器等。达到default.target标志启动完成。\",
   \"sort_order\": 6
 }")
 echo "N6=$N6 - systemd用户态初始化"
-
-N6_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N6\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"fstab配置错误阻塞启动\",
-  \"description\": \"fstab中挂载项错误导致systemd mount unit失败，系统进入emergency模式。\",
-  \"sort_order\": 0
-}")
-echo "  N6_PR1=$N6_PR1 - fstab坑引用"
-
-N6_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N6\",
-  \"node_type\": \"exception\",
-  \"title\": \"systemd循环依赖导致启动超时\",
-  \"description\": \"自定义unit之间循环依赖导致启动顺序死锁。\",
-  \"sort_order\": 1
-}")
-echo "  N6_EX1=$N6_EX1 - systemd循环依赖异常"
-
-N6_PR2=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N6\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"udevd规则冲突导致设备节点异常\",
-  \"description\": \"多条udev规则冲突导致设备节点权限错误或设备名不稳定。\",
-  \"sort_order\": 2
-}")
-echo "  N6_PR2=$N6_PR2 - udevd规则冲突坑引用"
 
 # ═══════════════════════════════════════
 # so:7 块设备层就绪 ★ 新增
@@ -821,7 +613,6 @@ echo "--- so:7 块设备层就绪 ★新增 ---"
 
 N7=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"块设备层就绪\",
   \"description\": \"内核块设备层：块设备注册、分区表扫描、I/O调度器初始化、bio请求提交与多队列分发。连接底层驱动(SCSI/NVMe)与上层文件系统的中间层。\",
   \"sort_order\": 7
@@ -831,62 +622,29 @@ echo "N7=$N7 - 块设备层就绪"
 N7_S1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N7\",
-  \"node_type\": \"step\",
   \"title\": \"分区表扫描\",
   \"description\": \"块设备发现后，内核读取前几个扇区解析分区表(MBR/GPT)。每个分区注册为独立块设备(sda1,sda2...)。GPT使用备份分区表提供冗余。\",
   \"sort_order\": 0
 }")
 echo "  N7_S1=$N7_S1 - 分区表扫描"
 
-N7_S1_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N7_S1\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"GPT备份分区表损坏\",
-  \"description\": \"磁盘末尾的GPT备份分区表损坏，失去冗余保护。\",
-  \"sort_order\": 0
-}")
-echo "    N7_S1_PR1=$N7_S1_PR1 - GPT备份分区表坑引用"
-
 N7_S2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N7\",
-  \"node_type\": \"step\",
   \"title\": \"I/O调度器配置\",
   \"description\": \"内核为每个块设备选择I/O调度器(none/mq-deadline/bfq/kyber)。HDD推荐mq-deadline或bfq以优化寻道，SSD推荐none或mq-deadline减少开销。\",
   \"sort_order\": 1
 }")
 echo "  N7_S2=$N7_S2 - I/O调度器配置"
 
-N7_S2_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N7_S2\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"I/O调度器选择不当\",
-  \"description\": \"HDD用none调度器或SSD用cfq导致性能问题。\",
-  \"sort_order\": 0
-}")
-echo "    N7_S2_PR1=$N7_S2_PR1 - I/O调度器坑引用"
-
 N7_S3=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N7\",
-  \"node_type\": \"step\",
   \"title\": \"bio提交与多队列分发\",
   \"description\": \"上层通过submit_bio()提交I/O请求，块层将bio转换为request，经I/O调度器排序合并后分发到硬件队列(blk-mq)。多队列机制利用多核CPU并行处理I/O。\",
   \"sort_order\": 2
 }")
 echo "  N7_S3=$N7_S3 - bio提交与多队列分发"
-
-N7_S3_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N7_S3\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"blk-mq CPU亲和性配置不当\",
-  \"description\": \"硬件队列到CPU的映射不合理导致I/O无法充分并行。\",
-  \"sort_order\": 0
-}")
-echo "    N7_S3_PR1=$N7_S3_PR1 - blk-mq CPU亲和性坑引用"
 
 # ═══════════════════════════════════════
 # so:8 文件系统挂载
@@ -895,7 +653,6 @@ echo "--- so:8 文件系统挂载 ---"
 
 N8=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"文件系统挂载\",
   \"description\": \"从块设备到文件系统可用的完整流程：文件系统类型探测、mount系统调用、VFS层抽象、Journal Replay。\",
   \"sort_order\": 8
@@ -905,72 +662,29 @@ echo "N8=$N8 - 文件系统挂载"
 N8_S1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N8\",
-  \"node_type\": \"step\",
   \"title\": \"文件系统类型探测\",
   \"description\": \"mount命令或blkid读取分区超级块(superblock)中的magic number识别文件系统类型。ext4在偏移0x438处有0xEF53标识，xfs在偏移0处有XFSB标识。\",
   \"sort_order\": 0
 }")
 echo "  N8_S1=$N8_S1 - 文件系统类型探测"
 
-N8_S1_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N8_S1\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"文件系统magic number误识别\",
-  \"description\": \"残留的旧superblock签名导致文件系统类型误判。\",
-  \"sort_order\": 0
-}")
-echo "    N8_S1_PR1=$N8_S1_PR1 - magic number误识别坑引用"
-
 N8_S2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N8\",
-  \"node_type\": \"step\",
   \"title\": \"mount与VFS层\",
   \"description\": \"mount系统调用通过VFS(Virtual File System)层：查找文件系统类型→调用fs_type.mount()→创建super_block→挂载到目录树。VFS提供统一的inode/dentry/file接口抽象不同文件系统。\",
   \"sort_order\": 1
 }")
 echo "  N8_S2=$N8_S2 - mount与VFS层"
 
-N8_S2_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N8_S2\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"fstab配置错误\",
-  \"description\": \"fstab中UUID错误或挂载选项不兼容导致mount失败。\",
-  \"sort_order\": 0
-}")
-echo "    N8_S2_PR1=$N8_S2_PR1 - fstab配置坑引用(跨节点引用)"
-
-N8_S2_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N8_S2\",
-  \"node_type\": \"exception\",
-  \"title\": \"掉电后文件系统损坏无法挂载\",
-  \"description\": \"非正常关机导致文件系统元数据不一致，mount失败需要fsck修复。\",
-  \"sort_order\": 1
-}")
-echo "    N8_S2_EX1=$N8_S2_EX1 - 掉电FS损坏异常"
-
 N8_S3=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N8\",
-  \"node_type\": \"step\",
   \"title\": \"Journal Replay\",
   \"description\": \"文件系统在非正常卸载后挂载时自动回放日志：ext4的JBD2日志、xfs的log recovery、btrfs的log tree。回放恢复到最后一致状态，保证元数据完整性。\",
   \"sort_order\": 2
 }")
 echo "  N8_S3=$N8_S3 - Journal Replay"
-
-N8_S3_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N8_S3\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"ext4日志回放失败\",
-  \"description\": \"日志区域损坏导致回放失败，文件系统无法挂载。\",
-  \"sort_order\": 0
-}")
-echo "    N8_S3_PR1=$N8_S3_PR1 - journal replay失败坑引用"
 
 # ═══════════════════════════════════════
 # so:9 运行时I/O读写
@@ -979,72 +693,20 @@ echo "--- so:9 运行时I/O读写 ---"
 
 N9=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"运行时I/O读写\",
   \"description\": \"应用read/write→VFS→文件系统(ext4_file_write_iter)→块层(bio提交)→I/O调度器→块设备驱动→硬件。Page Cache和Buffer Cache缓存热点数据减少磁盘I/O。\",
   \"sort_order\": 9
 }")
 echo "N9=$N9 - 运行时I/O读写"
 
-N9_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N9\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"NCQ命令错误\",
-  \"description\": \"NCQ命令报错后队列深度降级，I/O性能急剧下降。\",
-  \"sort_order\": 0
-}")
-echo "  N9_PR1=$N9_PR1 - NCQ错误坑引用"
-
-N9_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N9\",
-  \"node_type\": \"exception\",
-  \"title\": \"持续I/O错误导致FS离线\",
-  \"description\": \"底层设备错误累积导致文件系统被强制转为只读或卸载。\",
-  \"sort_order\": 1
-}")
-echo "  N9_EX1=$N9_EX1 - I/O错误FS离线异常"
-
-N9_PR2=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N9\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"Page Cache回写风暴导致I/O延迟飙升\",
-  \"description\": \"脏页积累超阈值触发同步回写，写入进程被阻塞。\",
-  \"sort_order\": 3
-}")
-echo "  N9_PR2=$N9_PR2 - Page Cache回写风暴坑引用"
-
-N9_PR3=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N9\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"TRIM/Discard命令导致SSD卡顿\",
-  \"description\": \"大量discard操作导致SSD固件处理延迟，I/O响应变慢。\",
-  \"sort_order\": 4
-}")
-echo "  N9_PR3=$N9_PR3 - TRIM/Discard卡顿坑引用"
-
 N9_S1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N9\",
-  \"node_type\": \"step\",
   \"title\": \"卸载与同步(umount)\",
   \"description\": \"umount触发：sync刷写Page Cache脏页→文件系统commit日志→释放super_block→从挂载树移除。强制卸载(umount -l)延迟释放，但可能丢失未刷数据。\",
   \"sort_order\": 2
 }")
 echo "  N9_S1=$N9_S1 - 卸载与同步"
-
-N9_S1_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N9_S1\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"umount时busy设备无法卸载\",
-  \"description\": \"有进程占用挂载点导致umount失败。\",
-  \"sort_order\": 0
-}")
-echo "    N9_S1_PR1=$N9_S1_PR1 - umount busy坑引用"
 
 # ═══════════════════════════════════════
 # so:10 SATA运行时机制 ★ EH/热插拔/电源管理/DFX 降为子节点
@@ -1053,7 +715,6 @@ echo "--- so:10 SATA运行时机制 ---"
 
 N10=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"SATA运行时机制\",
   \"description\": \"SATA子系统的运行时事件驱动机制：Error Handler错误恢复、热插拔处理、链路电源管理、DFX调试手段。这些机制在设备正常运行期间按需触发。\",
   \"sort_order\": 10
@@ -1064,155 +725,68 @@ echo "N10=$N10 - SATA运行时机制"
 N10_EH=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10\",
-  \"node_type\": \"step\",
   \"title\": \"Error Handler (EH)\",
   \"description\": \"libata EH是SATA错误恢复的核心机制。当命令超时或设备报告错误时，所有端口I/O暂停，EH线程接管进行错误分析和恢复。\",
   \"sort_order\": 0
 }")
 echo "  N10_EH=$N10_EH - Error Handler"
 
-N10_EH_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N10_EH\",
-  \"node_type\": \"exception\",
-  \"title\": \"libata EH与SCSI EH竞争死锁\",
-  \"description\": \"SATA命令超时同时触发两个EH子系统导致锁竞争死锁。\",
-  \"sort_order\": 10
-}")
-echo "    N10_EH_EX1=$N10_EH_EX1 - EH竞争死锁异常"
-
 N10_EH_S1=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10_EH\",
-  \"node_type\": \"step\",
   \"title\": \"EH错误分类\",
   \"description\": \"分析SError寄存器、Task File Status、AHCI PxIS中断状态，将错误分类为：设备错误(ATA_DEV_ERR)、HSM违例、超时、链路错误等。\",
   \"sort_order\": 0
 }")
 echo "    N10_EH_S1=$N10_EH_S1 - EH错误分类"
 
-N10_EH_S1_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N10_EH_S1\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"EH错误分类误判导致不必要reset\",
-  \"description\": \"瞬态错误被误分类为需要hard reset的严重错误。\",
-  \"sort_order\": 0
-}")
-echo "      N10_EH_S1_PR1=$N10_EH_S1_PR1 - EH误判坑引用"
-
 N10_EH_S2=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10_EH\",
-  \"node_type\": \"step\",
   \"title\": \"EH Reset序列\",
   \"description\": \"按级别尝试恢复：SRST(Soft Reset) → COMRESET(Hard Reset) → Port Reset。每级失败后升级到下一级，最多重试ATA_MAX_EH_TRIES(5)次。\",
   \"sort_order\": 1
 }")
 echo "    N10_EH_S2=$N10_EH_S2 - EH Reset序列"
 
-N10_EH_S2_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N10_EH_S2\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"Reset后设备参数丢失需重配\",
-  \"description\": \"Hard reset后SET FEATURES配置的参数被复位为出厂默认。\",
-  \"sort_order\": 0
-}")
-echo "      N10_EH_S2_PR1=$N10_EH_S2_PR1 - Reset参数丢失坑引用"
-
 N10_EH_S3=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10_EH\",
-  \"node_type\": \"step\",
   \"title\": \"EH恢复或放弃\",
   \"description\": \"Reset成功后重新IDENTIFY设备并恢复I/O。若所有Reset均失败，设备被标记为disabled(offline)，对应SCSI设备离线。\",
   \"sort_order\": 2
 }")
 echo "    N10_EH_S3=$N10_EH_S3 - EH恢复或放弃"
 
-N10_EH_S3_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N10_EH_S3\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"连续Reset失败设备离线\",
-  \"description\": \"命令超时后所有级别的reset都无法恢复设备。\",
-  \"sort_order\": 0
-}")
-echo "      N10_EH_S3_PR1=$N10_EH_S3_PR1 - 连续reset失败坑引用"
-
 # 热插拔
 N10_HP=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10\",
-  \"node_type\": \"step\",
   \"title\": \"热插拔处理\",
   \"description\": \"AHCI端口检测到设备插入(PxSERR.DIAG.X)或拔出(PxSERR.DIAG.N)事件后，通过AHCI中断通知驱动。插入触发链路建立+设备识别，拔出触发SCSI设备移除。\",
   \"sort_order\": 1
 }")
 echo "  N10_HP=$N10_HP - 热插拔处理"
 
-N10_HP_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N10_HP\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"热插拔导致数据不一致\",
-  \"description\": \"不支持SNotification的控制器上热插拔可能导致数据丢失。\",
-  \"sort_order\": 0
-}")
-echo "    N10_HP_PR1=$N10_HP_PR1 - 热插拔坑引用"
-
 # 电源管理
 N10_PM=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10\",
-  \"node_type\": \"step\",
   \"title\": \"电源管理\",
   \"description\": \"SATA电源管理包含多个级别：Active → Partial(快速恢复) → Slumber(深度节能) → DevSleep(最深节能)。通过ALPM(Aggressive Link Power Management)自动管理链路状态。\",
   \"sort_order\": 2
 }")
 echo "  N10_PM=$N10_PM - 电源管理"
 
-N10_PM_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N10_PM\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"ALPM导致链路不稳定\",
-  \"description\": \"频繁的Partial/Slumber切换引发链路错误。\",
-  \"sort_order\": 0
-}")
-echo "    N10_PM_PR1=$N10_PM_PR1 - ALPM坑引用"
-
-N10_PM_PR2=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N10_PM\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"DevSleep唤醒超时\",
-  \"description\": \"从DevSleep状态唤醒设备时超时失败。\",
-  \"sort_order\": 1
-}")
-echo "    N10_PM_PR2=$N10_PM_PR2 - DevSleep坑引用"
-
 # DFX
 N10_DFX=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N10\",
-  \"node_type\": \"step\",
   \"title\": \"DFX调试手段\",
   \"description\": \"SATA/AHCI问题排查工具集：dmesg日志分析、/sys/class/ata_*节点、smartctl SMART数据、AHCI寄存器dump、libata动态debug(echo 1 > /sys/module/libata/parameters/*)、blktrace I/O跟踪。\",
   \"sort_order\": 3
 }")
 echo "  N10_DFX=$N10_DFX - DFX调试手段"
-
-N10_DFX_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N10_DFX\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"DFX调试开启后性能严重下降\",
-  \"description\": \"libata动态调试或blktrace全量跟踪导致I/O延迟显著增加。\",
-  \"sort_order\": 0
-}")
-echo "    N10_DFX_PR1=$N10_DFX_PR1 - DFX性能下降坑引用"
 
 # ═══════════════════════════════════════
 # so:11 运行时保障机制 ★ 从"阶段四"改为横切关注点
@@ -1221,7 +795,6 @@ echo "--- so:11 运行时保障机制 ---"
 
 N11=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
-  \"node_type\": \"step\",
   \"title\": \"运行时保障机制\",
   \"description\": \"内核运行时的横切关注点：OOM Killer内存保护、Watchdog CPU监控、Panic与Kdump故障采集、PCIe AER硬件错误报告。这些机制在系统运行全程提供保障，不属于线性启动流程。\",
   \"sort_order\": 11
@@ -1232,252 +805,156 @@ echo "N11=$N11 - 运行时保障机制"
 N11_OOM=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N11\",
-  \"node_type\": \"step\",
   \"title\": \"OOM Killer\",
   \"description\": \"当系统可用内存+swap耗尽时，OOM Killer根据oom_score(基于内存使用量、运行时间、权限等)选择进程kill释放内存。受oom_score_adj和cgroup memory.oom控制。\",
   \"sort_order\": 0
 }")
 echo "  N11_OOM=$N11_OOM - OOM Killer"
 
-N11_OOM_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N11_OOM\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"OOM误杀关键进程\",
-  \"description\": \"OOM Killer根据评分选择了关键业务进程而非内存泄漏进程。\",
-  \"sort_order\": 0
-}")
-echo "    N11_OOM_PR1=$N11_OOM_PR1 - OOM误杀坑引用"
-
 # Watchdog
 N11_WD=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N11\",
-  \"node_type\": \"step\",
   \"title\": \"Watchdog检测\",
   \"description\": \"softlockup: hrtimer定期检查CPU是否20秒内未调度。hardlockup: NMI watchdog通过PMU检查CPU是否10秒内未响应中断。检测到后输出堆栈并可配置为panic。\",
   \"sort_order\": 1
 }")
 echo "  N11_WD=$N11_WD - Watchdog检测"
 
-N11_WD_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N11_WD\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"softlockup误报\",
-  \"description\": \"正常的长时间不可抢占计算被误判为死锁。\",
-  \"sort_order\": 0
-}")
-echo "    N11_WD_PR1=$N11_WD_PR1 - softlockup误报坑引用"
-
-N11_WD_PR2=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N11_WD\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"hardlockup在虚拟机中不可用\",
-  \"description\": \"虚拟化环境下PMU未暴露导致hardlockup检测失效。\",
-  \"sort_order\": 1
-}")
-echo "    N11_WD_PR2=$N11_WD_PR2 - hardlockup不可用坑引用"
-
 # Panic与Kdump
 N11_KD=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N11\",
-  \"node_type\": \"step\",
   \"title\": \"Panic与Kdump\",
   \"description\": \"kernel panic时：输出错误信息到console，触发panic_notifier_list回调，若配置了kexec则启动capture kernel采集vmcore。panic_timeout控制是否自动重启。\",
   \"sort_order\": 2
 }")
 echo "  N11_KD=$N11_KD - Panic与Kdump"
 
-N11_KD_PR1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N11_KD\",
-  \"node_type\": \"pitfall_ref\",
-  \"title\": \"kdump采集失败\",
-  \"description\": \"capture kernel启动失败导致无法生成vmcore进行事后分析。\",
-  \"sort_order\": 0
-}")
-echo "    N11_KD_PR1=$N11_KD_PR1 - kdump失败坑引用"
-
 # PCIe AER
 N11_AER=$(create "$API/tree-nodes" "{
   \"tree_id\": \"$T1\",
   \"parent_id\": \"$N11\",
-  \"node_type\": \"step\",
   \"title\": \"PCIe AER与设备Reset\",
   \"description\": \"PCIe AER(Advanced Error Reporting)检测到设备错误后，按严重程度执行：Correctable→仅记录、Uncorrectable Non-Fatal→function reset、Fatal→链路reset。SATA控制器作为PCIe设备也受AER管理。\",
   \"sort_order\": 3
 }")
 echo "  N11_AER=$N11_AER - PCIe AER与设备Reset"
 
-N11_AER_EX1=$(create "$API/tree-nodes" "{
-  \"tree_id\": \"$T1\",
-  \"parent_id\": \"$N11_AER\",
-  \"node_type\": \"exception\",
-  \"title\": \"PCIe AER中断风暴\",
-  \"description\": \"PCIe设备持续报告Correctable Error形成中断风暴。\",
-  \"sort_order\": 0
-}")
-echo "    N11_AER_EX1=$N11_AER_EX1 - AER中断风暴异常"
-
 echo ""
-echo "=== Phase 4: 关联坑到节点 ==="
+echo "=== Phase 4: 关联经验到节点 ==="
+
+# so:0 固件启动(BIOS/UEFI)
+post "$API/tree-nodes/$N0/experiences" "{\"experience_id\": \"$P26\"}"
+echo "  P26(Secure Boot签名失败) → N0"
+post "$API/tree-nodes/$N0/experiences" "{\"experience_id\": \"$P27\"}"
+echo "  P27(SATA模式IDE/RAID) → N0"
+post "$API/tree-nodes/$N0/experiences" "{\"experience_id\": \"$P38\"}"
+echo "  P38(PCI资源冲突) → N0"
 
 # so:1 GRUB2引导加载
-post "$API/tree-nodes/$N1_EX1/pitfalls" "{\"pitfall_id\": \"$P3\"}"
-echo "  P3(GRUB配置错误) → N1_EX1"
-
-post "$API/tree-nodes/$N1_PR1/pitfalls" "{\"pitfall_id\": \"$P2\"}"
-echo "  P2(root=参数错误) → N1_PR1"
+post "$API/tree-nodes/$N1/experiences" "{\"experience_id\": \"$P3\"}"
+echo "  P3(GRUB配置错误) → N1"
+post "$API/tree-nodes/$N1/experiences" "{\"experience_id\": \"$P2\"}"
+echo "  P2(root=参数错误) → N1"
 
 # so:2 内核解压与早期初始化
-post "$API/tree-nodes/$N2_EX1/pitfalls" "{\"pitfall_id\": \"$P8\"}"
-echo "  P8(启动阶段OOM) → N2_EX1"
+post "$API/tree-nodes/$N2/experiences" "{\"experience_id\": \"$P8\"}"
+echo "  P8(启动阶段OOM) → N2"
+post "$API/tree-nodes/$N2/experiences" "{\"experience_id\": \"$P42\"}"
+echo "  P42(内核解压失败) → N2"
 
 # so:3 内核子系统初始化(do_initcalls)
-post "$API/tree-nodes/$N3_EX1/pitfalls" "{\"pitfall_id\": \"$P5\"}"
-echo "  P5(模块加载顺序) → N3_EX1"
-
-post "$API/tree-nodes/$N3_S2_PR1/pitfalls" "{\"pitfall_id\": \"$P11\"}"
-echo "  P11(AHCI未识别) → N3_S2_PR1"
-
-post "$API/tree-nodes/$N3_S3_PR1/pitfalls" "{\"pitfall_id\": \"$P10\"}"
-echo "  P10(链路训练超时) → N3_S3_PR1"
-
-post "$API/tree-nodes/$N3_S3_EX1/pitfalls" "{\"pitfall_id\": \"$P16\"}"
-echo "  P16(FIS接收错误) → N3_S3_EX1"
+post "$API/tree-nodes/$N3/experiences" "{\"experience_id\": \"$P5\"}"
+echo "  P5(模块加载顺序) → N3"
+post "$API/tree-nodes/$N3_S1/experiences" "{\"experience_id\": \"$P28\"}"
+echo "  P28(SAT命令不兼容) → N3_S1"
+post "$API/tree-nodes/$N3_S2/experiences" "{\"experience_id\": \"$P11\"}"
+echo "  P11(AHCI未识别) → N3_S2"
+post "$API/tree-nodes/$N3_S3/experiences" "{\"experience_id\": \"$P10\"}"
+echo "  P10(链路训练超时) → N3_S3"
+post "$API/tree-nodes/$N3_S3/experiences" "{\"experience_id\": \"$P16\"}"
+echo "  P16(FIS接收错误) → N3_S3"
+post "$API/tree-nodes/$N3_S4/experiences" "{\"experience_id\": \"$P29\"}"
+echo "  P29(IDENTIFY数据异常) → N3_S4"
 
 # so:4 initrd/initramfs加载
-post "$API/tree-nodes/$N4_PR1/pitfalls" "{\"pitfall_id\": \"$P1\"}"
-echo "  P1(initrd缺模块) → N4_PR1"
-
-post "$API/tree-nodes/$N4_EX1/pitfalls" "{\"pitfall_id\": \"$P4\"}"
-echo "  P4(dracut配置) → N4_EX1"
+post "$API/tree-nodes/$N4/experiences" "{\"experience_id\": \"$P1\"}"
+echo "  P1(initrd缺模块) → N4"
+post "$API/tree-nodes/$N4/experiences" "{\"experience_id\": \"$P4\"}"
+echo "  P4(dracut配置) → N4"
 
 # so:5 rootfs切换
-post "$API/tree-nodes/$N5_PR1/pitfalls" "{\"pitfall_id\": \"$P9\"}"
-echo "  P9(VFS panic) → N5_PR1"
+post "$API/tree-nodes/$N5/experiences" "{\"experience_id\": \"$P9\"}"
+echo "  P9(VFS panic) → N5"
 
 # so:6 systemd用户态初始化
-post "$API/tree-nodes/$N6_PR1/pitfalls" "{\"pitfall_id\": \"$P6\"}"
-echo "  P6(fstab错误) → N6_PR1"
-
-post "$API/tree-nodes/$N6_EX1/pitfalls" "{\"pitfall_id\": \"$P7\"}"
-echo "  P7(systemd循环依赖) → N6_EX1"
+post "$API/tree-nodes/$N6/experiences" "{\"experience_id\": \"$P6\"}"
+echo "  P6(fstab错误) → N6"
+post "$API/tree-nodes/$N6/experiences" "{\"experience_id\": \"$P7\"}"
+echo "  P7(systemd循环依赖) → N6"
+post "$API/tree-nodes/$N6/experiences" "{\"experience_id\": \"$P43\"}"
+echo "  P43(udevd规则冲突) → N6"
 
 # so:7 块设备层就绪
-post "$API/tree-nodes/$N7_S2_PR1/pitfalls" "{\"pitfall_id\": \"$P19\"}"
-echo "  P19(I/O调度器) → N7_S2_PR1"
+post "$API/tree-nodes/$N7_S1/experiences" "{\"experience_id\": \"$P30\"}"
+echo "  P30(GPT备份分区表) → N7_S1"
+post "$API/tree-nodes/$N7_S2/experiences" "{\"experience_id\": \"$P19\"}"
+echo "  P19(I/O调度器) → N7_S2"
+post "$API/tree-nodes/$N7_S3/experiences" "{\"experience_id\": \"$P31\"}"
+echo "  P31(blk-mq CPU亲和性) → N7_S3"
 
 # so:8 文件系统挂载
-post "$API/tree-nodes/$N8_S2_PR1/pitfalls" "{\"pitfall_id\": \"$P6\"}"
-echo "  P6(fstab配置错误) → N8_S2_PR1 ★跨节点引用"
-
-post "$API/tree-nodes/$N8_S2_EX1/pitfalls" "{\"pitfall_id\": \"$P18\"}"
-echo "  P18(掉电FS损坏) → N8_S2_EX1"
-
-post "$API/tree-nodes/$N8_S3_PR1/pitfalls" "{\"pitfall_id\": \"$P21\"}"
-echo "  P21(journal replay失败) → N8_S3_PR1"
+post "$API/tree-nodes/$N8_S1/experiences" "{\"experience_id\": \"$P32\"}"
+echo "  P32(magic number误识别) → N8_S1"
+post "$API/tree-nodes/$N8_S2/experiences" "{\"experience_id\": \"$P6\"}"
+echo "  P6(fstab配置错误) → N8_S2 ★跨节点引用"
+post "$API/tree-nodes/$N8_S2/experiences" "{\"experience_id\": \"$P18\"}"
+echo "  P18(掉电FS损坏) → N8_S2"
+post "$API/tree-nodes/$N8_S3/experiences" "{\"experience_id\": \"$P21\"}"
+echo "  P21(journal replay失败) → N8_S3"
 
 # so:9 运行时I/O读写
-post "$API/tree-nodes/$N9_PR1/pitfalls" "{\"pitfall_id\": \"$P12\"}"
-echo "  P12(NCQ错误) → N9_PR1"
-
-post "$API/tree-nodes/$N9_EX1/pitfalls" "{\"pitfall_id\": \"$P20\"}"
-echo "  P20(I/O错误FS离线) → N9_EX1"
-
-# so:10 SATA运行时机制
-post "$API/tree-nodes/$N10_EH_S3_PR1/pitfalls" "{\"pitfall_id\": \"$P17\"}"
-echo "  P17(连续reset失败) → N10_EH_S3_PR1"
-
-post "$API/tree-nodes/$N10_HP_PR1/pitfalls" "{\"pitfall_id\": \"$P13\"}"
-echo "  P13(热插拔数据丢失) → N10_HP_PR1"
-
-post "$API/tree-nodes/$N10_PM_PR1/pitfalls" "{\"pitfall_id\": \"$P14\"}"
-echo "  P14(ALPM不稳定) → N10_PM_PR1"
-
-post "$API/tree-nodes/$N10_PM_PR2/pitfalls" "{\"pitfall_id\": \"$P15\"}"
-echo "  P15(DevSleep唤醒) → N10_PM_PR2"
-
-# so:11 运行时保障机制
-post "$API/tree-nodes/$N11_OOM_PR1/pitfalls" "{\"pitfall_id\": \"$P22\"}"
-echo "  P22(OOM误杀) → N11_OOM_PR1"
-
-post "$API/tree-nodes/$N11_WD_PR1/pitfalls" "{\"pitfall_id\": \"$P23\"}"
-echo "  P23(softlockup误报) → N11_WD_PR1"
-
-post "$API/tree-nodes/$N11_WD_PR2/pitfalls" "{\"pitfall_id\": \"$P24\"}"
-echo "  P24(hardlockup不可用) → N11_WD_PR2"
-
-post "$API/tree-nodes/$N11_KD_PR1/pitfalls" "{\"pitfall_id\": \"$P25\"}"
-echo "  P25(kdump失败) → N11_KD_PR1"
-
-# --- 新增坑关联 (P26-P43) ---
-
-# so:0 固件启动
-post "$API/tree-nodes/$N0_PR1/pitfalls" "{\"pitfall_id\": \"$P26\"}"
-echo "  P26(Secure Boot签名失败) → N0_PR1"
-
-post "$API/tree-nodes/$N0_PR2/pitfalls" "{\"pitfall_id\": \"$P27\"}"
-echo "  P27(SATA模式IDE/RAID) → N0_PR2"
-
-post "$API/tree-nodes/$N0_EX1/pitfalls" "{\"pitfall_id\": \"$P38\"}"
-echo "  P38(PCI资源冲突) → N0_EX1"
-
-# so:2 内核解压
-post "$API/tree-nodes/$N2_EX2/pitfalls" "{\"pitfall_id\": \"$P42\"}"
-echo "  P42(内核解压失败) → N2_EX2"
-
-# so:3 内核子系统初始化
-post "$API/tree-nodes/$N3_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P28\"}"
-echo "  P28(SAT命令不兼容) → N3_S1_PR1"
-
-post "$API/tree-nodes/$N3_S4_PR1/pitfalls" "{\"pitfall_id\": \"$P29\"}"
-echo "  P29(IDENTIFY数据异常) → N3_S4_PR1"
-
-# so:6 systemd
-post "$API/tree-nodes/$N6_PR2/pitfalls" "{\"pitfall_id\": \"$P43\"}"
-echo "  P43(udevd规则冲突) → N6_PR2"
-
-# so:7 块设备层
-post "$API/tree-nodes/$N7_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P30\"}"
-echo "  P30(GPT备份分区表) → N7_S1_PR1"
-
-post "$API/tree-nodes/$N7_S3_PR1/pitfalls" "{\"pitfall_id\": \"$P31\"}"
-echo "  P31(blk-mq CPU亲和性) → N7_S3_PR1"
-
-# so:8 文件系统挂载
-post "$API/tree-nodes/$N8_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P32\"}"
-echo "  P32(magic number误识别) → N8_S1_PR1"
-
-# so:9 运行时I/O
-post "$API/tree-nodes/$N9_PR2/pitfalls" "{\"pitfall_id\": \"$P40\"}"
-echo "  P40(Page Cache回写风暴) → N9_PR2"
-
-post "$API/tree-nodes/$N9_PR3/pitfalls" "{\"pitfall_id\": \"$P41\"}"
-echo "  P41(TRIM/Discard卡顿) → N9_PR3"
-
-post "$API/tree-nodes/$N9_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P33\"}"
-echo "  P33(umount busy) → N9_S1_PR1"
+post "$API/tree-nodes/$N9/experiences" "{\"experience_id\": \"$P12\"}"
+echo "  P12(NCQ错误) → N9"
+post "$API/tree-nodes/$N9/experiences" "{\"experience_id\": \"$P20\"}"
+echo "  P20(I/O错误FS离线) → N9"
+post "$API/tree-nodes/$N9/experiences" "{\"experience_id\": \"$P40\"}"
+echo "  P40(Page Cache回写风暴) → N9"
+post "$API/tree-nodes/$N9/experiences" "{\"experience_id\": \"$P41\"}"
+echo "  P41(TRIM/Discard卡顿) → N9"
+post "$API/tree-nodes/$N9_S1/experiences" "{\"experience_id\": \"$P33\"}"
+echo "  P33(umount busy) → N9_S1"
 
 # so:10 SATA运行时机制
-post "$API/tree-nodes/$N10_EH_EX1/pitfalls" "{\"pitfall_id\": \"$P39\"}"
-echo "  P39(EH竞争死锁) → N10_EH_EX1"
-
-post "$API/tree-nodes/$N10_EH_S1_PR1/pitfalls" "{\"pitfall_id\": \"$P35\"}"
-echo "  P35(EH错误分类误判) → N10_EH_S1_PR1"
-
-post "$API/tree-nodes/$N10_EH_S2_PR1/pitfalls" "{\"pitfall_id\": \"$P36\"}"
-echo "  P36(Reset参数丢失) → N10_EH_S2_PR1"
-
-post "$API/tree-nodes/$N10_DFX_PR1/pitfalls" "{\"pitfall_id\": \"$P34\"}"
-echo "  P34(DFX性能下降) → N10_DFX_PR1"
+post "$API/tree-nodes/$N10_EH/experiences" "{\"experience_id\": \"$P39\"}"
+echo "  P39(EH竞争死锁) → N10_EH"
+post "$API/tree-nodes/$N10_EH_S1/experiences" "{\"experience_id\": \"$P35\"}"
+echo "  P35(EH错误分类误判) → N10_EH_S1"
+post "$API/tree-nodes/$N10_EH_S2/experiences" "{\"experience_id\": \"$P36\"}"
+echo "  P36(Reset参数丢失) → N10_EH_S2"
+post "$API/tree-nodes/$N10_EH_S3/experiences" "{\"experience_id\": \"$P17\"}"
+echo "  P17(连续reset失败) → N10_EH_S3"
+post "$API/tree-nodes/$N10_HP/experiences" "{\"experience_id\": \"$P13\"}"
+echo "  P13(热插拔数据丢失) → N10_HP"
+post "$API/tree-nodes/$N10_PM/experiences" "{\"experience_id\": \"$P14\"}"
+echo "  P14(ALPM不稳定) → N10_PM"
+post "$API/tree-nodes/$N10_PM/experiences" "{\"experience_id\": \"$P15\"}"
+echo "  P15(DevSleep唤醒) → N10_PM"
+post "$API/tree-nodes/$N10_DFX/experiences" "{\"experience_id\": \"$P34\"}"
+echo "  P34(DFX性能下降) → N10_DFX"
 
 # so:11 运行时保障机制
-post "$API/tree-nodes/$N11_AER_EX1/pitfalls" "{\"pitfall_id\": \"$P37\"}"
-echo "  P37(AER中断风暴) → N11_AER_EX1"
+post "$API/tree-nodes/$N11_OOM/experiences" "{\"experience_id\": \"$P22\"}"
+echo "  P22(OOM误杀) → N11_OOM"
+post "$API/tree-nodes/$N11_WD/experiences" "{\"experience_id\": \"$P23\"}"
+echo "  P23(softlockup误报) → N11_WD"
+post "$API/tree-nodes/$N11_WD/experiences" "{\"experience_id\": \"$P24\"}"
+echo "  P24(hardlockup不可用) → N11_WD"
+post "$API/tree-nodes/$N11_KD/experiences" "{\"experience_id\": \"$P25\"}"
+echo "  P25(kdump失败) → N11_KD"
+post "$API/tree-nodes/$N11_AER/experiences" "{\"experience_id\": \"$P37\"}"
+echo "  P37(AER中断风暴) → N11_AER"
 
 echo ""
 echo "=== Phase 5: 创建 3 个任务 ==="
@@ -1585,14 +1062,14 @@ echo "数据填充完成！"
 echo "========================================="
 echo ""
 echo "验证命令："
-echo "  curl -s $API/knowledge-trees | jq 'length'              # 期望: 1"
-echo "  curl -s $API/pitfalls | jq 'length'                     # 期望: 43"
-echo "  curl -s $API/tasks | jq 'length'                        # 期望: 3"
-echo "  curl -s $API/pitfalls/$P6 | jq '.references | length'   # 期望: 2 (跨节点引用)"
-echo "  curl -s $API/tree-nodes/$N1/instances | jq 'length'     # 期望: 2 (Ubuntu + Arch)"
+echo "  curl -s $API/knowledge-trees | jq 'length'                  # 期望: 1"
+echo "  curl -s $API/experiences | jq 'length'                      # 期望: 43"
+echo "  curl -s $API/tasks | jq 'length'                            # 期望: 3"
+echo "  curl -s $API/experiences/$P6 | jq '.references | length'    # 期望: 2 (跨节点引用)"
+echo "  curl -s $API/tree-nodes/$N1/instances | jq 'length'         # 期望: 2 (Ubuntu + Arch)"
 echo ""
 echo "前端页面验证："
-echo "  http://localhost:3000/knowledge  - 查看知识树"
-echo "  http://localhost:3000/pitfalls   - 查看43个坑及跨节点引用"
-echo "  http://localhost:3000/tasks      - 查看3个任务"
+echo "  http://localhost:3000/knowledge    - 查看知识树"
+echo "  http://localhost:3000/experiences  - 查看43个经验及跨节点引用"
+echo "  http://localhost:3000/tasks        - 查看3个任务"
 echo "  展开 GRUB2引导加载 节点 → 应看到 Ubuntu/Arch 泳道"

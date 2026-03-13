@@ -87,7 +87,6 @@ async fn tree_nodes_nested() {
         .uri("/api/v1/tree-nodes")
         .set_json(serde_json::json!({
             "tree_id": tree_id,
-            "node_type": "step",
             "title": "步骤1"
         }))
         .to_request();
@@ -102,16 +101,15 @@ async fn tree_nodes_nested() {
         .set_json(serde_json::json!({
             "tree_id": tree_id,
             "parent_id": node1_id,
-            "node_type": "exception",
             "title": "异常场景"
         }))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), 201);
 
-    // Create a pitfall and link it
+    // Create an experience and link it
     let req = test::TestRequest::post()
-        .uri("/api/v1/pitfalls")
+        .uri("/api/v1/experiences")
         .set_json(serde_json::json!({
             "title": "数据库连接超时",
             "description": "高并发时连接池不够用",
@@ -120,13 +118,13 @@ async fn tree_nodes_nested() {
         }))
         .to_request();
     let resp = test::call_service(&app, req).await;
-    let pitfall: serde_json::Value = test::read_body_json(resp).await;
-    let pitfall_id = pitfall["id"].as_str().unwrap().to_string();
+    let experience: serde_json::Value = test::read_body_json(resp).await;
+    let experience_id = experience["id"].as_str().unwrap().to_string();
 
-    // Link pitfall to node
+    // Link experience to node
     let req = test::TestRequest::post()
-        .uri(&format!("/api/v1/tree-nodes/{}/pitfalls", node1_id))
-        .set_json(serde_json::json!({ "pitfall_id": pitfall_id }))
+        .uri(&format!("/api/v1/tree-nodes/{}/experiences", node1_id))
+        .set_json(serde_json::json!({ "experience_id": experience_id }))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), 201);
@@ -140,11 +138,11 @@ async fn tree_nodes_nested() {
     let nodes: Vec<serde_json::Value> = test::read_body_json(resp).await;
     assert_eq!(nodes.len(), 1); // 1 root node
     assert_eq!(nodes[0]["children"].as_array().unwrap().len(), 1); // 1 child
-    assert_eq!(nodes[0]["pitfalls"].as_array().unwrap().len(), 1); // 1 pitfall
+    assert_eq!(nodes[0]["experiences"].as_array().unwrap().len(), 1); // 1 experience
 
-    // Unlink pitfall
+    // Unlink experience
     let req = test::TestRequest::delete()
-        .uri(&format!("/api/v1/tree-nodes/{}/pitfalls/{}", node1_id, pitfall_id))
+        .uri(&format!("/api/v1/tree-nodes/{}/experiences/{}", node1_id, experience_id))
         .to_request();
     let resp = test::call_service(&app, req).await;
     assert_eq!(resp.status(), 204);

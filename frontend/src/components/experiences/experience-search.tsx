@@ -16,7 +16,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 const statuses = ["全部", "active", "resolved", "transformed"];
 const severities = ["全部", "low", "medium", "high", "critical"];
 
-export function PitfallSearch() {
+export function ExperienceSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
@@ -37,7 +37,7 @@ export function PitfallSearch() {
         }
       }
       startTransition(() => {
-        router.push(`/pitfalls?${params.toString()}`);
+        router.push(`/experiences?${params.toString()}`);
       });
     },
     [router, startTransition]
@@ -57,7 +57,7 @@ export function PitfallSearch() {
       <div className="relative flex-1">
         <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
         <Input
-          placeholder="搜索坑..."
+          placeholder="搜索经验..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="pl-9"

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct Pitfall {
+pub struct Experience {
     pub id: String,
     pub title: String,
     pub description: Option<String>,
@@ -15,7 +15,7 @@ pub struct Pitfall {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CreatePitfall {
+pub struct CreateExperience {
     pub title: String,
     pub description: Option<String>,
     pub severity: Option<String>,
@@ -23,7 +23,7 @@ pub struct CreatePitfall {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct UpdatePitfall {
+pub struct UpdateExperience {
     pub title: Option<String>,
     pub description: Option<String>,
     pub severity: Option<String>,
@@ -33,23 +33,23 @@ pub struct UpdatePitfall {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PitfallQuery {
+pub struct ExperienceQuery {
     pub q: Option<String>,
     pub status: Option<String>,
     pub severity: Option<String>,
     pub tag: Option<String>,
 }
 
-/// Pitfall with info about which nodes/trees reference it
+/// Experience with info about which nodes/trees reference it
 #[derive(Debug, Serialize)]
-pub struct PitfallWithRefs {
+pub struct ExperienceWithRefs {
     #[serde(flatten)]
-    pub pitfall: Pitfall,
-    pub references: Vec<PitfallReference>,
+    pub experience: Experience,
+    pub references: Vec<ExperienceReference>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
-pub struct PitfallReference {
+pub struct ExperienceReference {
     pub node_id: String,
     pub node_title: String,
     pub tree_id: String,

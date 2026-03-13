@@ -3,8 +3,8 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::error::AppError;
+use crate::models::experience::Experience;
 use crate::models::knowledge_tree::*;
-use crate::models::pitfall::Pitfall;
 
 #[derive(serde::Deserialize)]
 pub struct TreeQuery {
@@ -173,11 +173,11 @@ async fn get_tree_nodes(
     .await
     .unwrap_or_default();
 
-    // Fetch all pitfall refs for nodes in this tree
-    let pitfall_refs: Vec<(String, Pitfall)> = {
+    // Fetch all experience refs for nodes in this tree
+    let experience_refs: Vec<(String, Experience)> = {
         let refs = sqlx::query_as::<_, (String, String)>(
-            "SELECT npr.node_id, npr.pitfall_id FROM node_pitfall_refs npr
-             JOIN tree_nodes tn ON npr.node_id = tn.id
+            "SELECT ner.node_id, ner.experience_id FROM node_experience_refs ner
+             JOIN tree_nodes tn ON ner.node_id = tn.id
              WHERE tn.tree_id = ?1"
         )
         .bind(&tree_id)
@@ -185,27 +185,27 @@ async fn get_tree_nodes(
         .await?;
 
         let mut result = Vec::new();
-        for (node_id, pitfall_id) in refs {
-            if let Ok(pitfall) = sqlx::query_as::<_, Pitfall>(
-                "SELECT * FROM pitfalls WHERE id = ?1"
+        for (node_id, experience_id) in refs {
+            if let Ok(experience) = sqlx::query_as::<_, Experience>(
+                "SELECT * FROM experiences WHERE id = ?1"
             )
-            .bind(&pitfall_id)
+            .bind(&experience_id)
             .fetch_one(pool.get_ref())
             .await {
-                result.push((node_id, pitfall));
+                result.push((node_id, experience));
             }
         }
         result
     };
 
     // Build nested tree
-    let nested = build_nested_tree(&nodes, &pitfall_refs, &instance_assignments, None);
+    let nested = build_nested_tree(&nodes, &experience_refs, &instance_assignments, None);
     Ok(HttpResponse::Ok().json(nested))
 }
 
 fn build_nested_tree(
     all_nodes: &[TreeNode],
-    pitfall_refs: &[(String, Pitfall)],
+    experience_refs: &[(String, Experience)],
     instance_assignments: &[(String, String)],
     parent_id: Option<&str>,
 ) -> Vec<TreeNodeNested> {
@@ -213,10 +213,10 @@ fn build_nested_tree(
         .iter()
         .filter(|n| n.parent_id.as_deref() == parent_id)
         .map(|node| {
-            let pitfalls: Vec<Pitfall> = pitfall_refs
+            let experiences: Vec<Experience> = experience_refs
                 .iter()
                 .filter(|(nid, _)| nid == &node.id)
-                .map(|(_, p)| p.clone())
+                .map(|(_, e)| e.clone())
                 .collect();
 
             let inst_ids: Vec<String> = instance_assignments
@@ -225,21 +225,20 @@ fn build_nested_tree(
                 .map(|(_, iid)| iid.clone())
                 .collect();
 
-            let children = build_nested_tree(all_nodes, pitfall_refs, instance_assignments, Some(&node.id));
+            let children = build_nested_tree(all_nodes, experience_refs, instance_assignments, Some(&node.id));
 
             TreeNodeNested {
                 node: TreeNode {
                     id: node.id.clone(),
                     tree_id: node.tree_id.clone(),
                     parent_id: node.parent_id.clone(),
-                    node_type: node.node_type.clone(),
                     title: node.title.clone(),
                     description: node.description.clone(),
                     sort_order: node.sort_order,
                     created_at: node.created_at.clone(),
                     updated_at: node.updated_at.clone(),
                 },
-                pitfalls,
+                experiences,
                 children,
                 instance_ids: inst_ids,
             }

@@ -25,7 +25,7 @@ export function TaskForm() {
   const [assignedBy, setAssignedBy] = useState("");
   const [modules, setModules] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [pitfallMsg, setPitfallMsg] = useState("");
+  const [experienceMsg, setExperienceMsg] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,11 +56,11 @@ export function TaskForm() {
       setOpen(false);
       router.refresh();
 
-      if (result.auto_identified_pitfalls?.length > 0) {
-        setPitfallMsg(
-          `已自动识别 ${result.auto_identified_pitfalls.length} 个相关的坑`
+      if (result.auto_identified_experiences?.length > 0) {
+        setExperienceMsg(
+          `已自动识别 ${result.auto_identified_experiences.length} 个相关的经验`
         );
-        setTimeout(() => setPitfallMsg(""), 5000);
+        setTimeout(() => setExperienceMsg(""), 5000);
       }
     } finally {
       setLoading(false);
@@ -135,9 +135,9 @@ export function TaskForm() {
           </form>
         </DialogContent>
       </Dialog>
-      {pitfallMsg && (
+      {experienceMsg && (
         <span className="text-sm text-amber-600 dark:text-amber-400">
-          {pitfallMsg}
+          {experienceMsg}
         </span>
       )}
     </>

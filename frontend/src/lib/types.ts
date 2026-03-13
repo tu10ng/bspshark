@@ -62,7 +62,6 @@ export interface TreeNode {
   id: string;
   tree_id: string;
   parent_id: string | null;
-  node_type: "step" | "pitfall_ref" | "exception";
   title: string;
   description: string | null;
   sort_order: number;
@@ -71,7 +70,7 @@ export interface TreeNode {
 }
 
 export interface TreeNodeNested extends TreeNode {
-  pitfalls: Pitfall[];
+  experiences: Experience[];
   children: TreeNodeNested[];
   instance_ids: string[];
 }
@@ -86,7 +85,7 @@ export interface KnowledgeInstance {
   updated_at: string;
 }
 
-export interface Pitfall {
+export interface Experience {
   id: string;
   title: string;
   description: string | null;
@@ -98,15 +97,15 @@ export interface Pitfall {
   updated_at: string;
 }
 
-export interface PitfallReference {
+export interface ExperienceReference {
   node_id: string;
   node_title: string;
   tree_id: string;
   tree_name: string;
 }
 
-export interface PitfallWithRefs extends Pitfall {
-  references: PitfallReference[];
+export interface ExperienceWithRefs extends Experience {
+  references: ExperienceReference[];
 }
 
 export interface Task {
@@ -117,7 +116,7 @@ export interface Task {
   assigned_by: string | null;
   status: "pending" | "in_progress" | "completed" | "cancelled";
   modules: string; // JSON array as string
-  discovered_pitfalls_notes: string | null;
+  discovered_experiences_notes: string | null;
   due_date: string | null;
   created_at: string;
   updated_at: string;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { PitfallWithRefs } from "@/lib/types";
+import type { ExperienceWithRefs } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const severityColors: Record<string, string> = {
@@ -19,44 +19,44 @@ const statusLabels: Record<string, string> = {
   transformed: "已转化",
 };
 
-export function PitfallDetail({ pitfall }: { pitfall: PitfallWithRefs }) {
-  const tags: string[] = JSON.parse(pitfall.tags || "[]");
+export function ExperienceDetail({ experience }: { experience: ExperienceWithRefs }) {
+  const tags: string[] = JSON.parse(experience.tags || "[]");
 
   return (
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">{pitfall.title}</h1>
-          <Badge className={cn("border-0", severityColors[pitfall.severity])}>
-            {pitfall.severity}
+          <h1 className="text-2xl font-bold tracking-tight">{experience.title}</h1>
+          <Badge className={cn("border-0", severityColors[experience.severity])}>
+            {experience.severity}
           </Badge>
           <Badge variant="outline">
-            {statusLabels[pitfall.status] ?? pitfall.status}
+            {statusLabels[experience.status] ?? experience.status}
           </Badge>
         </div>
         <p className="text-muted-foreground mt-1 text-sm">
-          创建于 {new Date(pitfall.created_at).toLocaleDateString("zh-CN")}
+          创建于 {new Date(experience.created_at).toLocaleDateString("zh-CN")}
         </p>
       </div>
 
-      {pitfall.description && (
+      {experience.description && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">描述</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="whitespace-pre-wrap">{pitfall.description}</p>
+            <p className="whitespace-pre-wrap">{experience.description}</p>
           </CardContent>
         </Card>
       )}
 
-      {pitfall.resolution_notes && (
+      {experience.resolution_notes && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">解决说明</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="whitespace-pre-wrap">{pitfall.resolution_notes}</p>
+            <p className="whitespace-pre-wrap">{experience.resolution_notes}</p>
           </CardContent>
         </Card>
       )}
@@ -71,14 +71,14 @@ export function PitfallDetail({ pitfall }: { pitfall: PitfallWithRefs }) {
         </div>
       )}
 
-      {pitfall.references.length > 0 && (
+      {experience.references.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">引用此坑的节点</CardTitle>
+            <CardTitle className="text-base">引用此经验的节点</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {pitfall.references.map((ref) => (
+              {experience.references.map((ref) => (
                 <li key={ref.node_id} className="flex items-center gap-2 text-sm">
                   <Link
                     href={`/knowledge/${ref.tree_id}`}

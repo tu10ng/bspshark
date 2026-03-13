@@ -12,28 +12,28 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  getPitfalls,
-  linkNodePitfall,
-  unlinkNodePitfall,
+  getExperiences,
+  linkNodeExperience,
+  unlinkNodeExperience,
 } from "@/lib/api";
 import { useDebounce } from "@/hooks/use-debounce";
-import type { Pitfall } from "@/lib/types";
+import type { Experience } from "@/lib/types";
 import { X, Plus, AlertTriangle, CheckCircle, Search } from "lucide-react";
 
-interface NodePitfallManagerProps {
+interface NodeExperienceManagerProps {
   nodeId: string;
-  pitfalls: Pitfall[];
+  experiences: Experience[];
   onMutate: () => void;
 }
 
-export function NodePitfallManager({
+export function NodeExperienceManager({
   nodeId,
-  pitfalls,
+  experiences,
   onMutate,
-}: NodePitfallManagerProps) {
+}: NodeExperienceManagerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<Pitfall[]>([]);
+  const [results, setResults] = useState<Experience[]>([]);
   const [searching, setSearching] = useState(false);
   const [unlinking, setUnlinking] = useState<string | null>(null);
   const [linking, setLinking] = useState<string | null>(null);
@@ -42,36 +42,36 @@ export function NodePitfallManager({
   useEffect(() => {
     if (!dialogOpen) return;
 
-    async function fetchPitfalls() {
+    async function fetchExperiences() {
       setSearching(true);
       try {
-        const data = await getPitfalls(
+        const data = await getExperiences(
           debouncedSearch ? { q: debouncedSearch } : undefined
         );
-        // Filter out already linked pitfalls
-        const linkedIds = new Set(pitfalls.map((p) => p.id));
-        setResults(data.filter((p) => !linkedIds.has(p.id)));
+        // Filter out already linked experiences
+        const linkedIds = new Set(experiences.map((e) => e.id));
+        setResults(data.filter((e) => !linkedIds.has(e.id)));
       } finally {
         setSearching(false);
       }
     }
-    fetchPitfalls();
-  }, [debouncedSearch, dialogOpen, pitfalls]);
+    fetchExperiences();
+  }, [debouncedSearch, dialogOpen, experiences]);
 
-  const handleUnlink = async (pitfallId: string) => {
-    setUnlinking(pitfallId);
+  const handleUnlink = async (experienceId: string) => {
+    setUnlinking(experienceId);
     try {
-      await unlinkNodePitfall(nodeId, pitfallId);
+      await unlinkNodeExperience(nodeId, experienceId);
       onMutate();
     } finally {
       setUnlinking(null);
     }
   };
 
-  const handleLink = async (pitfallId: string) => {
-    setLinking(pitfallId);
+  const handleLink = async (experienceId: string) => {
+    setLinking(experienceId);
     try {
-      await linkNodePitfall(nodeId, pitfallId);
+      await linkNodeExperience(nodeId, experienceId);
       onMutate();
     } finally {
       setLinking(null);
@@ -81,15 +81,15 @@ export function NodePitfallManager({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">关联的坑</p>
+        <p className="text-sm font-medium">关联的经验</p>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger render={<Button size="xs" variant="outline" />}>
             <Plus className="mr-1 size-3" />
-            关联坑
+            关联经验
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>关联坑</DialogTitle>
+              <DialogTitle>关联经验</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
               <div className="relative">
@@ -97,7 +97,7 @@ export function NodePitfallManager({
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="搜索坑..."
+                  placeholder="搜索经验..."
                   className="pl-8"
                 />
               </div>
@@ -108,33 +108,33 @@ export function NodePitfallManager({
                   </p>
                 ) : results.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    无可关联的坑
+                    无可关联的经验
                   </p>
                 ) : (
-                  results.map((p) => (
+                  results.map((e) => (
                     <div
-                      key={p.id}
+                      key={e.id}
                       className="flex items-center justify-between gap-2 rounded-md border p-2"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">
-                          {p.title}
+                          {e.title}
                         </p>
                         <div className="flex gap-1">
                           <Badge variant="secondary" className="text-[10px]">
-                            {p.severity}
+                            {e.severity}
                           </Badge>
                           <Badge variant="outline" className="text-[10px]">
-                            {p.status}
+                            {e.status}
                           </Badge>
                         </div>
                       </div>
                       <Button
                         size="xs"
-                        onClick={() => handleLink(p.id)}
-                        disabled={linking === p.id}
+                        onClick={() => handleLink(e.id)}
+                        disabled={linking === e.id}
                       >
-                        {linking === p.id ? "..." : "关联"}
+                        {linking === e.id ? "..." : "关联"}
                       </Button>
                     </div>
                   ))
@@ -145,29 +145,29 @@ export function NodePitfallManager({
         </Dialog>
       </div>
 
-      {pitfalls.length === 0 ? (
-        <p className="text-sm text-muted-foreground">暂无关联的坑</p>
+      {experiences.length === 0 ? (
+        <p className="text-sm text-muted-foreground">暂无关联的经验</p>
       ) : (
         <ul className="space-y-1.5">
-          {pitfalls.map((p) => (
+          {experiences.map((e) => (
             <li
-              key={p.id}
+              key={e.id}
               className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm"
             >
-              {p.status === "resolved" ? (
+              {e.status === "resolved" ? (
                 <CheckCircle className="size-3.5 shrink-0 text-green-500" />
               ) : (
                 <AlertTriangle className="size-3.5 shrink-0 text-red-500" />
               )}
-              <span className="min-w-0 flex-1 truncate">{p.title}</span>
+              <span className="min-w-0 flex-1 truncate">{e.title}</span>
               <Badge variant="secondary" className="shrink-0 text-[10px]">
-                {p.severity}
+                {e.severity}
               </Badge>
               <Button
                 size="icon-xs"
                 variant="ghost"
-                onClick={() => handleUnlink(p.id)}
-                disabled={unlinking === p.id}
+                onClick={() => handleUnlink(e.id)}
+                disabled={unlinking === e.id}
               >
                 <X className="size-3" />
               </Button>

@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::models::knowledge_tree::*;
-use crate::models::task::PitfallRef;
+use crate::models::task::ExperienceRef;
 
 #[post("/api/v1/tree-nodes")]
 async fn create_node(
@@ -41,13 +41,12 @@ async fn create_node(
     let sort_order = max_sort.unwrap_or(-1) + 1;
 
     sqlx::query(
-        "INSERT INTO tree_nodes (id, tree_id, parent_id, node_type, title, description, sort_order)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+        "INSERT INTO tree_nodes (id, tree_id, parent_id, title, description, sort_order)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
     )
     .bind(&id)
     .bind(&body.tree_id)
     .bind(&body.parent_id)
-    .bind(&body.node_type)
     .bind(&body.title)
     .bind(&body.description)
     .bind(sort_order)
@@ -78,15 +77,13 @@ async fn update_node(
 
     let title = body.title.as_deref().unwrap_or(&existing.title);
     let description = body.description.as_deref().or(existing.description.as_deref());
-    let node_type = body.node_type.as_deref().unwrap_or(&existing.node_type);
 
     sqlx::query(
-        "UPDATE tree_nodes SET title = ?1, description = ?2, node_type = ?3,
-         updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?4"
+        "UPDATE tree_nodes SET title = ?1, description = ?2,
+         updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?3"
     )
     .bind(title)
     .bind(description)
-    .bind(node_type)
     .bind(&id)
     .execute(pool.get_ref())
     .await?;
@@ -150,7 +147,6 @@ async fn reorder_node(
             .map_err(|_| AppError::NotFound("Target knowledge tree not found".to_string()))?;
 
         // Recursively update tree_id for this node and all descendants
-        // using a CTE to find all descendant node IDs
         sqlx::query(
             "WITH RECURSIVE descendants(id) AS (
                 SELECT ?1
@@ -186,50 +182,50 @@ async fn reorder_node(
     Ok(HttpResponse::Ok().json(node))
 }
 
-#[post("/api/v1/tree-nodes/{id}/pitfalls")]
-async fn link_pitfall(
+#[post("/api/v1/tree-nodes/{id}/experiences")]
+async fn link_experience(
     pool: web::Data<SqlitePool>,
     path: web::Path<String>,
-    body: web::Json<PitfallRef>,
+    body: web::Json<ExperienceRef>,
 ) -> Result<HttpResponse, AppError> {
     let node_id = path.into_inner();
 
-    // Verify node and pitfall exist
+    // Verify node and experience exist
     sqlx::query("SELECT id FROM tree_nodes WHERE id = ?1")
         .bind(&node_id)
         .fetch_one(pool.get_ref())
         .await
         .map_err(|_| AppError::NotFound("Node not found".to_string()))?;
 
-    sqlx::query("SELECT id FROM pitfalls WHERE id = ?1")
-        .bind(&body.pitfall_id)
+    sqlx::query("SELECT id FROM experiences WHERE id = ?1")
+        .bind(&body.experience_id)
         .fetch_one(pool.get_ref())
         .await
-        .map_err(|_| AppError::NotFound("Pitfall not found".to_string()))?;
+        .map_err(|_| AppError::NotFound("Experience not found".to_string()))?;
 
     sqlx::query(
-        "INSERT OR IGNORE INTO node_pitfall_refs (node_id, pitfall_id) VALUES (?1, ?2)"
+        "INSERT OR IGNORE INTO node_experience_refs (node_id, experience_id) VALUES (?1, ?2)"
     )
     .bind(&node_id)
-    .bind(&body.pitfall_id)
+    .bind(&body.experience_id)
     .execute(pool.get_ref())
     .await?;
 
     Ok(HttpResponse::Created().json(serde_json::json!({"status": "linked"})))
 }
 
-#[delete("/api/v1/tree-nodes/{node_id}/pitfalls/{pitfall_id}")]
-async fn unlink_pitfall(
+#[delete("/api/v1/tree-nodes/{node_id}/experiences/{experience_id}")]
+async fn unlink_experience(
     pool: web::Data<SqlitePool>,
     path: web::Path<(String, String)>,
 ) -> Result<HttpResponse, AppError> {
-    let (node_id, pitfall_id) = path.into_inner();
+    let (node_id, experience_id) = path.into_inner();
 
     let result = sqlx::query(
-        "DELETE FROM node_pitfall_refs WHERE node_id = ?1 AND pitfall_id = ?2"
+        "DELETE FROM node_experience_refs WHERE node_id = ?1 AND experience_id = ?2"
     )
     .bind(&node_id)
-    .bind(&pitfall_id)
+    .bind(&experience_id)
     .execute(pool.get_ref())
     .await?;
 

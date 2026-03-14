@@ -14,7 +14,7 @@ export function WikiPageContent({
   tree: WikiPageNested[];
 }) {
   return (
-    <div>
+    <div className="mx-auto max-w-[800px]">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="space-y-2">
           <WikiBreadcrumbs breadcrumbs={page.breadcrumbs} />

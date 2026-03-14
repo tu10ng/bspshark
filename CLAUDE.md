@@ -34,7 +34,7 @@ bspshark/
 │   │   ├── ui/        # shadcn/ui 组件 (CLI 管理)
 │   │   ├── layout/    # 布局组件 (sidebar, header, nav)
 │   │   ├── dashboard/ # Dashboard 组件
-│   │   ├── wiki/      # Wiki 组件 (wiki-nav, wiki-editor, wiki-markdown, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content)
+│   │   ├── wiki/      # Wiki 组件 (wiki-sidebar, wiki-nav, wiki-editor, wiki-markdown, wiki-heading, wiki-callout, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content)
 │   │   ├── tools/     # Tools 组件
 │   │   ├── knowledge/ # 知识树组件 (tree-flow, node-form 等)
 │   │   ├── experiences/ # 经验组件
@@ -114,9 +114,19 @@ make db-migrate     # 数据库迁移
 ### 架构
 
 - **数据模型**: `wiki_pages` 表，自引用树结构（`parent_id` FK），slug 路径寻址
-- **前端布局**: 嵌套在 App Layout 内，Wiki 自带 RTD 风格二级导航树
-- **Markdown 渲染**: react-markdown + remark-gfm + rehype-highlight，使用 `@tailwindcss/typography` 的 `prose` 样式
+- **前端布局**: 嵌套在 App Layout 内，RTD (Read the Docs) 风格：280px 二级侧边栏（独立背景色 + 搜索框 + 导航树）+ 800px 限宽内容区
+- **Markdown 渲染**: react-markdown + remark-gfm + rehype-highlight，`prose dark:prose-invert wiki-prose` 样式（衬线标题、蓝色链接、红色内联代码、斑马纹表格、heading 锚点 `¶`）
+- **告示框**: 支持 GitHub Alerts 语法（`> [!NOTE]`/`[!TIP]`/`[!WARNING]`/`[!CAUTION]`/`[!IMPORTANT]`），由 `WikiCallout` 组件渲染
 - **编辑器**: 分屏模式，左侧 Markdown 源码，右侧实时预览
+
+### Wiki 前端样式
+
+- **CSS 变量**: `--wiki-sidebar-*`（侧边栏色系）和 `--wiki-accent`（绿色强调），light/dark 各一套
+- **衬线字体**: Noto Serif（`--font-serif`），仅用于 `.wiki-prose` 标题
+- **侧边栏**: `WikiSidebar` 包装搜索输入 + `WikiNav`，搜索递归过滤树并 `forceExpandAll`
+- **导航激活态**: 蓝色高亮 + `border-l-2`，使用 `wiki-sidebar-active` 色系
+- **Prev/Next**: 绿色 `wiki-accent` 边框和文字
+- **面包屑**: `/` 分隔符
 
 ### Wiki API
 

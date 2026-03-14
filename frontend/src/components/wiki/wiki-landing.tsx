@@ -16,7 +16,7 @@ export function WikiLanding({ tree }: { tree: WikiPageNested[] }) {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-[800px]">
       <h1 className="text-2xl font-bold tracking-tight">Wiki</h1>
       <p className="mt-1 text-muted-foreground">文档与知识库</p>
       <div className="mt-6 grid gap-3 sm:grid-cols-2">

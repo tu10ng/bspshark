@@ -28,7 +28,9 @@ export function WikiBreadcrumbs({
           const isLast = i === breadcrumbs.length - 1;
           return (
             <span key={crumb.id} className="contents">
-              <BreadcrumbSeparator />
+              <BreadcrumbSeparator>
+                <span className="text-muted-foreground/60">/</span>
+              </BreadcrumbSeparator>
               <BreadcrumbItem>
                 {isLast ? (
                   <BreadcrumbPage>{crumb.title}</BreadcrumbPage>

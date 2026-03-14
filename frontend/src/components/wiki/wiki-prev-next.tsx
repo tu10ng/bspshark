@@ -45,12 +45,12 @@ export function WikiPrevNext({
       {prev ? (
         <Link
           href={`/wiki/${prev.path}`}
-          className="group flex flex-1 items-center gap-2 rounded-lg border p-4 transition-colors hover:bg-muted"
+          className="group flex flex-1 items-center gap-2 rounded-md border border-wiki-accent/20 bg-wiki-accent/5 p-4 transition-colors hover:bg-wiki-accent/15"
         >
-          <ChevronLeftIcon className="size-4 shrink-0 text-muted-foreground" />
+          <ChevronLeftIcon className="size-4 shrink-0 text-wiki-accent" />
           <div className="min-w-0">
             <div className="text-xs text-muted-foreground">上一页</div>
-            <div className="truncate text-sm font-medium">{prev.title}</div>
+            <div className="truncate text-sm font-medium text-wiki-accent">{prev.title}</div>
           </div>
         </Link>
       ) : (
@@ -59,13 +59,13 @@ export function WikiPrevNext({
       {next ? (
         <Link
           href={`/wiki/${next.path}`}
-          className="group flex flex-1 items-center justify-end gap-2 rounded-lg border p-4 text-right transition-colors hover:bg-muted"
+          className="group flex flex-1 items-center justify-end gap-2 rounded-md border border-wiki-accent/20 bg-wiki-accent/5 p-4 text-right transition-colors hover:bg-wiki-accent/15"
         >
           <div className="min-w-0">
             <div className="text-xs text-muted-foreground">下一页</div>
-            <div className="truncate text-sm font-medium">{next.title}</div>
+            <div className="truncate text-sm font-medium text-wiki-accent">{next.title}</div>
           </div>
-          <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+          <ChevronRightIcon className="size-4 shrink-0 text-wiki-accent" />
         </Link>
       ) : (
         <div className="flex-1" />

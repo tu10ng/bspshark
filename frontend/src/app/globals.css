@@ -48,6 +48,13 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-wiki-sidebar: var(--wiki-sidebar);
+  --color-wiki-sidebar-foreground: var(--wiki-sidebar-foreground);
+  --color-wiki-sidebar-muted: var(--wiki-sidebar-muted);
+  --color-wiki-sidebar-active: var(--wiki-sidebar-active);
+  --color-wiki-sidebar-active-bg: var(--wiki-sidebar-active-bg);
+  --color-wiki-accent: var(--wiki-accent);
+  --font-serif: var(--font-serif);
 }
 
 :root {
@@ -83,6 +90,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --wiki-sidebar: oklch(0.965 0 0);
+  --wiki-sidebar-foreground: oklch(0.25 0 0);
+  --wiki-sidebar-muted: oklch(0.93 0 0);
+  --wiki-sidebar-active: oklch(0.55 0.15 250);
+  --wiki-sidebar-active-bg: oklch(0.92 0.03 250);
+  --wiki-accent: oklch(0.55 0.16 155);
 }
 
 .dark {
@@ -117,6 +130,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --wiki-sidebar: oklch(0.18 0 0);
+  --wiki-sidebar-foreground: oklch(0.85 0 0);
+  --wiki-sidebar-muted: oklch(0.25 0 0);
+  --wiki-sidebar-active: oklch(0.7 0.12 250);
+  --wiki-sidebar-active-bg: oklch(0.25 0.04 250);
+  --wiki-accent: oklch(0.65 0.14 155);
 }
 
 @layer base {
@@ -175,3 +194,48 @@
 .dark .hljs-number {
   color: oklch(0.75 0.15 50);
 }
+
+/* Wiki prose - RTD 风格 */
+.wiki-prose h1, .wiki-prose h2, .wiki-prose h3,
+.wiki-prose h4, .wiki-prose h5, .wiki-prose h6 {
+  font-family: var(--font-serif), ui-serif, Georgia, serif;
+}
+.wiki-prose h2 {
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* 蓝色链接 + 已访问紫色 */
+.wiki-prose a { color: oklch(0.55 0.15 250); text-decoration: none; }
+.wiki-prose a:hover { text-decoration: underline; }
+.wiki-prose a:visited { color: oklch(0.50 0.15 310); }
+.dark .wiki-prose a { color: oklch(0.70 0.12 250); }
+.dark .wiki-prose a:visited { color: oklch(0.65 0.12 310); }
+
+/* 红色内联 code */
+.wiki-prose :not(pre) > code {
+  color: oklch(0.55 0.2 25);
+  background-color: oklch(0.97 0.005 25);
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+.wiki-prose :not(pre) > code::before,
+.wiki-prose :not(pre) > code::after { content: "" !important; }
+.dark .wiki-prose :not(pre) > code {
+  color: oklch(0.75 0.15 25);
+  background-color: oklch(0.22 0.02 25);
+}
+
+/* 表格：斑马纹 + 全边框 + 表头背景 */
+.wiki-prose th {
+  background-color: oklch(0.95 0 0);
+  font-weight: 600;
+}
+.dark .wiki-prose th { background-color: oklch(0.25 0 0); }
+.wiki-prose th, .wiki-prose td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+}
+.wiki-prose tbody tr:nth-child(even) { background-color: oklch(0.98 0 0); }
+.dark .wiki-prose tbody tr:nth-child(even) { background-color: oklch(0.19 0 0); }

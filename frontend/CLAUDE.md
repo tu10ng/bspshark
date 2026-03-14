@@ -31,7 +31,7 @@ src/
 │   ├── ui/                 # shadcn/ui 组件（CLI 生成，勿手动修改）
 │   ├── layout/             # 布局组件（sidebar, header, nav, theme-toggle）
 │   ├── dashboard/          # Dashboard 组件（stats-cards, quick-tools）
-│   ├── wiki/               # Wiki 组件（wiki-nav, wiki-editor, wiki-markdown, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content）
+│   ├── wiki/               # Wiki 组件（wiki-sidebar, wiki-nav, wiki-editor, wiki-markdown, wiki-heading, wiki-callout, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content）
 │   └── tools/              # Tools 组件（language-tabs, tool-card, tool-catalog, tool-executor, tool-output）
 ├── lib/
 │   ├── utils.ts            # cn() 类名合并
@@ -88,8 +88,9 @@ src/
 
 - TailwindCSS utility-first
 - 使用 `cn()` 合并类名
-- 避免自定义 CSS，优先用 Tailwind 工具类
+- 避免自定义 CSS，优先用 Tailwind 工具类（例外：`globals.css` 中 `.wiki-prose` 排版覆盖用原生 CSS）
 - 主题色基于 OKLch 色彩空间
+- Wiki 专用 CSS 变量：`--wiki-sidebar-*`（侧边栏色系）、`--wiki-accent`（绿色强调），在 `globals.css` 的 `:root` 和 `.dark` 中定义
 
 ## 测试
 
@@ -100,9 +101,19 @@ src/
 ## Wiki 系统
 
 - Wiki 页面使用树形结构组织，slug 路径寻址（如 `/wiki/dev/frontend`）
-- 布局：嵌套在 App Layout 内，Wiki 自带 RTD 风格二级导航树（`WikiNav`，250px 宽）
+- 布局：嵌套在 App Layout 内，RTD (Read the Docs) 风格
+  - **侧边栏**（280px）：`WikiSidebar`（client component）包装标题栏 + 搜索输入框 + `WikiNav`，背景色 `bg-wiki-sidebar`
+  - **搜索过滤**：递归 `filterTree` 匹配标题，搜索时 `forceExpandAll` 展开所有匹配节点
+  - **导航激活态**：蓝色高亮 + `border-l-2`，使用 `--wiki-sidebar-active` 色系
+  - **内容区**：`max-w-[800px]` 限宽（放在 `wiki-page-content` / `wiki-landing`，编辑器页面不限宽）
 - `[[...slug]]` catch-all 路由处理首页（无 slug）和所有页面路径
-- Markdown 渲染使用 `react-markdown` + `remark-gfm` + `rehype-highlight`，配合 `prose dark:prose-invert` 样式
+- Markdown 渲染使用 `react-markdown` + `remark-gfm` + `rehype-highlight`，配合 `prose dark:prose-invert wiki-prose` 样式
+  - **wiki-prose**：衬线标题（Noto Serif）、H2 底线、蓝色链接（已访问紫色）、红色内联 code、斑马纹表格
+  - **WikiHeading**：h1-h6 自动生成 id 锚点 + hover `¶` 链接（支持中文 slugify）
+  - **WikiCallout**：GitHub Alerts 语法（`> [!NOTE]`/`[!TIP]`/`[!WARNING]`/`[!CAUTION]`/`[!IMPORTANT]`），5 种颜色 + 图标
+  - **外部链接**：`http` 开头自动 `target="_blank"` + `ExternalLinkIcon`
+- **Prev/Next 导航**：绿色 `wiki-accent` 样式
+- **面包屑**：`/` 分隔符
 - 编辑器为分屏模式（`WikiEditor`），左侧 textarea + 右侧 `WikiMarkdown` 实时预览
 - 新建页面通过 `?parent=id` query param 指定父页面
 

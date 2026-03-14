@@ -4,7 +4,8 @@
 
 - Next.js 16 (App Router) + TypeScript
 - shadcn/ui 组件库（`base-nova` 风格）
-- TailwindCSS v4
+- TailwindCSS v4 + `@tailwindcss/typography`
+- react-markdown + remark-gfm + rehype-highlight（Wiki Markdown 渲染）
 - pnpm 包管理
 
 ## 目录结构
@@ -19,20 +20,22 @@ src/
 │       ├── layout.tsx      # SidebarProvider + Header 布局壳
 │       ├── page.tsx        # Dashboard 首页 (/)
 │       ├── wiki/
-│       │   ├── page.tsx    # 文章列表 (/wiki)
-│       │   └── [id]/page.tsx  # 文章详情 (/wiki/[id])
+│       │   ├── layout.tsx           # Wiki 布局（二级侧边栏 + 内容区）
+│       │   ├── [[...slug]]/page.tsx # 通配路由：/wiki（首页）和 /wiki/any/path（页面）
+│       │   ├── edit/[id]/page.tsx   # 编辑页（分屏 Markdown 编辑器）
+│       │   └── new/page.tsx         # 新建页（?parent=id 指定父页面）
 │       └── tools/
 │           ├── page.tsx    # 工具目录 (/tools)
 │           └── [id]/page.tsx  # 工具执行 (/tools/[id])
 ├── components/
 │   ├── ui/                 # shadcn/ui 组件（CLI 生成，勿手动修改）
 │   ├── layout/             # 布局组件（sidebar, header, nav, theme-toggle）
-│   ├── dashboard/          # Dashboard 组件（stats-cards, recent-articles, quick-tools）
-│   ├── wiki/               # Wiki 组件（article-search, article-card, article-list, article-content）
+│   ├── dashboard/          # Dashboard 组件（stats-cards, quick-tools）
+│   ├── wiki/               # Wiki 组件（wiki-nav, wiki-editor, wiki-markdown, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content）
 │   └── tools/              # Tools 组件（language-tabs, tool-card, tool-catalog, tool-executor, tool-output）
 ├── lib/
 │   ├── utils.ts            # cn() 类名合并
-│   ├── types.ts            # 共享 TypeScript 类型（Article, Tool, ToolExecution, DashboardStats）
+│   ├── types.ts            # 共享 TypeScript 类型（WikiPage, Tool, ToolExecution, DashboardStats, KnowledgeTree, Experience, Task 等）
 │   └── api.ts              # API 客户端封装（server 用绝对 URL，client 用代理）
 ├── hooks/
 │   ├── use-debounce.ts     # 搜索防抖
@@ -94,7 +97,15 @@ src/
 - 测试文件放 `src/__tests__/` 或与组件同目录 `*.test.tsx`
 - 运行: `pnpm test`
 
+## Wiki 系统
+
+- Wiki 页面使用树形结构组织，slug 路径寻址（如 `/wiki/dev/frontend`）
+- 布局：嵌套在 App Layout 内，Wiki 自带 RTD 风格二级导航树（`WikiNav`，250px 宽）
+- `[[...slug]]` catch-all 路由处理首页（无 slug）和所有页面路径
+- Markdown 渲染使用 `react-markdown` + `remark-gfm` + `rehype-highlight`，配合 `prose dark:prose-invert` 样式
+- 编辑器为分屏模式（`WikiEditor`），左侧 textarea + 右侧 `WikiMarkdown` 实时预览
+- 新建页面通过 `?parent=id` query param 指定父页面
+
 ## 注意事项
 
-- 当前页面数据为 mock 数据，待后端 API 实现后替换为真实调用
 - URL 驱动的搜索组件避免在 useEffect 中直接依赖 searchParams（会导致无限循环），用 useRef 存最新值

@@ -25,11 +25,16 @@ bspshark/
 ├── frontend/          # Next.js 前端
 │   ├── src/app/       # App Router 页面
 │   │   └── (app)/     # 带侧边栏的路由组 (/, /wiki, /tools, /knowledge, /experiences, /tasks)
+│   │       └── wiki/  # Wiki 文档系统（RTD 风格）
+│   │           ├── layout.tsx           # 二级侧边栏布局
+│   │           ├── [[...slug]]/page.tsx # 通配路由（首页 + 页面渲染）
+│   │           ├── edit/[id]/page.tsx   # 编辑页
+│   │           └── new/page.tsx         # 新建页
 │   ├── src/components/ # UI 组件
 │   │   ├── ui/        # shadcn/ui 组件 (CLI 管理)
 │   │   ├── layout/    # 布局组件 (sidebar, header, nav)
 │   │   ├── dashboard/ # Dashboard 组件
-│   │   ├── wiki/      # Wiki 组件
+│   │   ├── wiki/      # Wiki 组件 (wiki-nav, wiki-editor, wiki-markdown, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content)
 │   │   ├── tools/     # Tools 组件
 │   │   ├── knowledge/ # 知识树组件 (tree-flow, node-form 等)
 │   │   ├── experiences/ # 经验组件
@@ -42,10 +47,10 @@ bspshark/
 │   │   ├── lib.rs     # 路由注册
 │   │   ├── db.rs      # SqlitePool 初始化 + 迁移
 │   │   ├── error.rs   # AppError 枚举
-│   │   ├── models/    # 数据模型 (knowledge_tree, experience, task)
-│   │   └── handlers/  # HTTP 处理器 (knowledge_tree, tree_node, experience, task)
+│   │   ├── models/    # 数据模型 (knowledge_tree, experience, task, wiki_page)
+│   │   └── handlers/  # HTTP 处理器 (knowledge_tree, tree_node, experience, task, wiki_page)
 │   ├── tests/         # 集成测试
-│   ├── migrations/    # SQL 迁移 (001_initial_schema, 002_knowledge_system, 003_knowledge_instances, 004_remove_node_type_rename_experience)
+│   ├── migrations/    # SQL 迁移 (001_initial_schema, 002_knowledge_system, 003_knowledge_instances, 004_remove_node_type_rename_experience, 005_wiki_pages)
 │   └── tools/         # 工具脚本 (python/, java/, bash/)
 └── Makefile           # 统一命令入口
 ```
@@ -104,6 +109,34 @@ make db-migrate     # 数据库迁移
 - **自动识别经验**: 创建任务时根据 modules 字段匹配 knowledge_trees → tree_nodes → experiences
 - **级联删除**: 所有关联表 ON DELETE CASCADE
 
+## Wiki 文档系统
+
+### 架构
+
+- **数据模型**: `wiki_pages` 表，自引用树结构（`parent_id` FK），slug 路径寻址
+- **前端布局**: 嵌套在 App Layout 内，Wiki 自带 RTD 风格二级导航树
+- **Markdown 渲染**: react-markdown + remark-gfm + rehype-highlight，使用 `@tailwindcss/typography` 的 `prose` 样式
+- **编辑器**: 分屏模式，左侧 Markdown 源码，右侧实时预览
+
+### Wiki API
+
+| 端点 | 说明 |
+|------|------|
+| `GET /api/v1/wiki` | 完整嵌套树 |
+| `GET /api/v1/wiki/page?path=dev/frontend` | 按 slug 路径查找 |
+| `GET /api/v1/wiki/pages/{id}` | 按 ID 查找（含 path + breadcrumbs） |
+| `POST /api/v1/wiki/pages` | 创建页面 |
+| `PUT /api/v1/wiki/pages/{id}` | 更新页面 |
+| `DELETE /api/v1/wiki/pages/{id}` | 删除页面（级联） |
+| `PUT /api/v1/wiki/pages/{id}/reorder` | 移动/排序 |
+
+### 关键约束
+
+- **slug 唯一性**: 同级（相同 parent_id）slug 不可重复，不同级可以
+- **保留 slug**: `edit`、`new` 不可用作 slug（与前端路由冲突）
+- **级联删除**: 删除父页面自动删除所有子页面
+- **排序**: `sort_order` 控制同级页面顺序，创建时自动递增
+
 ## 示例数据
 
 `populate_knowledge.sh` 脚本通过 curl 调用后端 API 批量填充 Linux 存储 I/O 全链路知识示例数据：
@@ -122,6 +155,16 @@ bash populate_knowledge.sh
 **注意**:
 - `task_artifacts.artifact_type` 有 CHECK 约束，仅允许 `design_doc`、`arch_review_video`、`test_review_video`、`other`
 - 填充前需清空旧数据（删除 `backend/bspshark.db` 并重新 `make db-migrate`），否则会出现重复数据
+
+`populate_wiki.sh` 脚本填充 Wiki 示例文档：
+
+- **3 个顶层页面**: 入门指南、开发指南、API 参考
+- **6 个子页面**: 安装与配置、前端开发、组件开发、后端开发、数据库设计、Wiki API、知识树 API
+
+```bash
+# 填充 Wiki（需后端运行在 localhost:8080）
+bash populate_wiki.sh
+```
 
 ## 测试策略
 

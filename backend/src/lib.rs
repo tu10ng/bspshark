@@ -59,5 +59,13 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
         .service(handlers::task::unlink_task_node)
         .service(handlers::task::create_artifact)
         .service(handlers::task::delete_artifact)
-        .service(handlers::task::get_task_experiences);
+        .service(handlers::task::get_task_experiences)
+        // Wiki pages
+        .service(handlers::wiki_page::get_wiki_tree)
+        .service(handlers::wiki_page::get_wiki_page_by_path)
+        .service(handlers::wiki_page::get_wiki_page_by_id)
+        .service(handlers::wiki_page::create_wiki_page)
+        .service(handlers::wiki_page::update_wiki_page)
+        .service(handlers::wiki_page::delete_wiki_page)
+        .service(handlers::wiki_page::reorder_wiki_page);
 }

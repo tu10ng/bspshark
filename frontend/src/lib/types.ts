@@ -1,12 +1,29 @@
-export interface Article {
-  id: number;
+// Wiki Pages
+
+export interface WikiPage {
+  id: string;
+  parent_id: string | null;
   title: string;
-  summary: string;
+  slug: string;
   content: string;
-  category: string;
-  tags: string[];
+  sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface WikiPageNested extends WikiPage {
+  children: WikiPageNested[];
+}
+
+export interface WikiPageBreadcrumb {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+export interface WikiPageWithPath extends WikiPage {
+  path: string;
+  breadcrumbs: WikiPageBreadcrumb[];
 }
 
 export interface Tool {
@@ -41,7 +58,7 @@ export interface ToolExecution {
 }
 
 export interface DashboardStats {
-  article_count: number;
+  wiki_count: number;
   tool_count: number;
   execution_count: number;
   active_tools: number;

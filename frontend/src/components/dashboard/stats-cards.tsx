@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardStats } from "@/lib/types";
 
 const statConfig = [
-  { key: "article_count" as const, label: "文章数", icon: BookOpen },
+  { key: "wiki_count" as const, label: "Wiki 页面", icon: BookOpen },
   { key: "tool_count" as const, label: "工具数", icon: Wrench },
   { key: "execution_count" as const, label: "执行次数", icon: Play },
   { key: "active_tools" as const, label: "活跃工具", icon: Activity },

@@ -1,5 +1,7 @@
 import type {
-  Article,
+  WikiPageNested,
+  WikiPageWithPath,
+  WikiPage,
   Tool,
   ToolExecution,
   DashboardStats,
@@ -38,20 +40,53 @@ export function getStats(): Promise<DashboardStats> {
   return fetchApi("/api/v1/stats");
 }
 
-// Articles
-export function getArticles(params?: {
-  q?: string;
-  category?: string;
-}): Promise<Article[]> {
-  const searchParams = new URLSearchParams();
-  if (params?.q) searchParams.set("q", params.q);
-  if (params?.category) searchParams.set("category", params.category);
-  const qs = searchParams.toString();
-  return fetchApi(`/api/v1/articles${qs ? `?${qs}` : ""}`);
+// Wiki Pages
+export function getWikiTree(): Promise<WikiPageNested[]> {
+  return fetchApi("/api/v1/wiki");
 }
 
-export function getArticle(id: number): Promise<Article> {
-  return fetchApi(`/api/v1/articles/${id}`);
+export function getWikiPageByPath(path: string): Promise<WikiPageWithPath> {
+  return fetchApi(`/api/v1/wiki/page?path=${encodeURIComponent(path)}`);
+}
+
+export function getWikiPageById(id: string): Promise<WikiPageWithPath> {
+  return fetchApi(`/api/v1/wiki/pages/${id}`);
+}
+
+export function createWikiPage(data: {
+  parent_id?: string;
+  title: string;
+  slug: string;
+  content?: string;
+}): Promise<WikiPage> {
+  return fetchApi("/api/v1/wiki/pages", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateWikiPage(
+  id: string,
+  data: { title?: string; slug?: string; content?: string }
+): Promise<WikiPage> {
+  return fetchApi(`/api/v1/wiki/pages/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteWikiPage(id: string): Promise<void> {
+  return fetchApi(`/api/v1/wiki/pages/${id}`, { method: "DELETE" });
+}
+
+export function reorderWikiPage(
+  id: string,
+  data: { parent_id?: string; sort_order: number }
+): Promise<WikiPage> {
+  return fetchApi(`/api/v1/wiki/pages/${id}/reorder`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 }
 
 // Tools

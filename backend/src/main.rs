@@ -1,4 +1,5 @@
 use actix_cors::Cors;
+use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, App, HttpServer};
 
 use backend::configure_app;
@@ -37,6 +38,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .app_data(web::Data::new(pool.clone()))
+            .app_data(web::PayloadConfig::new(50 * 1024 * 1024)) // 50MB
+            .app_data(MultipartFormConfig::default().total_limit(50 * 1024 * 1024))
             .configure(configure_app)
     })
     .bind(("0.0.0.0", port))?

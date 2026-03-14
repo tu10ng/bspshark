@@ -1,5 +1,4 @@
 import type {
-  Article,
   Tool,
   ToolExecution,
   DashboardStats,
@@ -12,6 +11,10 @@ import type {
   TaskDetail,
   TaskArtifact,
   TreeNode,
+  WikiPage,
+  WikiTreeNode,
+  WikiAttachment,
+  RecentWikiPage,
 } from "./types";
 
 const BASE_URL =
@@ -38,20 +41,92 @@ export function getStats(): Promise<DashboardStats> {
   return fetchApi("/api/v1/stats");
 }
 
-// Articles
-export function getArticles(params?: {
-  q?: string;
-  category?: string;
-}): Promise<Article[]> {
-  const searchParams = new URLSearchParams();
-  if (params?.q) searchParams.set("q", params.q);
-  if (params?.category) searchParams.set("category", params.category);
-  const qs = searchParams.toString();
-  return fetchApi(`/api/v1/articles${qs ? `?${qs}` : ""}`);
+// Wiki
+export function getWikiTree(): Promise<WikiTreeNode[]> {
+  return fetchApi("/api/v1/wiki/tree");
 }
 
-export function getArticle(id: number): Promise<Article> {
-  return fetchApi(`/api/v1/articles/${id}`);
+export function getRecentWikiPages(limit?: number): Promise<RecentWikiPage[]> {
+  const qs = limit ? `?limit=${limit}` : "";
+  return fetchApi(`/api/v1/wiki/pages/recent${qs}`);
+}
+
+export function getWikiPage(id: string): Promise<WikiPage> {
+  return fetchApi(`/api/v1/wiki/pages/${id}`);
+}
+
+export function createWikiPage(data: {
+  parent_id?: string | null;
+  title: string;
+  content?: string;
+  is_folder?: boolean;
+}): Promise<WikiPage> {
+  return fetchApi("/api/v1/wiki/pages", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateWikiPage(
+  id: string,
+  data: { title?: string; content?: string }
+): Promise<WikiPage> {
+  return fetchApi(`/api/v1/wiki/pages/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteWikiPage(id: string): Promise<void> {
+  return fetchApi(`/api/v1/wiki/pages/${id}`, { method: "DELETE" });
+}
+
+export function reorderWikiPage(
+  id: string,
+  data: { parent_id?: string | null; sort_order: number }
+): Promise<WikiPage> {
+  return fetchApi(`/api/v1/wiki/pages/${id}/reorder`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function uploadWikiFile(file: File): Promise<WikiAttachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/api/v1/wiki/upload", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function importMarkdownFiles(
+  files: File[],
+  parentId?: string | null
+): Promise<WikiPage[]> {
+  const formData = new FormData();
+  if (parentId) {
+    formData.append("parent_id", parentId);
+  }
+  for (const file of files) {
+    formData.append("files", file);
+  }
+  const res = await fetch("/api/v1/wiki/import", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error(`Import failed: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export function deleteWikiAttachment(id: string): Promise<void> {
+  return fetchApi(`/api/v1/wiki/attachments/${id}`, { method: "DELETE" });
 }
 
 // Tools

@@ -1,12 +1,38 @@
-export interface Article {
-  id: number;
+// Wiki System
+
+export interface WikiPage {
+  id: string;
+  parent_id: string | null;
   title: string;
-  summary: string;
   content: string;
-  category: string;
-  tags: string[];
+  is_folder: boolean;
+  sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface WikiTreeNode {
+  id: string;
+  parent_id: string | null;
+  title: string;
+  is_folder: boolean;
+  sort_order: number;
+  children: WikiTreeNode[];
+}
+
+export interface RecentWikiPage {
+  id: string;
+  title: string;
+  updated_at: string;
+}
+
+export interface WikiAttachment {
+  id: string;
+  url: string;
+  filename: string;
+  original_name: string;
+  mime_type: string;
+  size: number;
 }
 
 export interface Tool {
@@ -41,7 +67,7 @@ export interface ToolExecution {
 }
 
 export interface DashboardStats {
-  article_count: number;
+  wiki_page_count: number;
   tool_count: number;
   execution_count: number;
   active_tools: number;

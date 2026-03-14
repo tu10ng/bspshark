@@ -11,37 +11,37 @@ const calloutConfig = {
   NOTE: {
     icon: InfoIcon,
     label: "Note",
-    border: "border-blue-500",
-    bg: "bg-blue-50 dark:bg-blue-950/30",
-    iconColor: "text-blue-500",
+    titleBg: "bg-[#6ab0de]",
+    bodyBg: "bg-[#e7f2fa] dark:bg-blue-950/30",
+    titleText: "text-white",
   },
   TIP: {
     icon: LightbulbIcon,
     label: "Tip",
-    border: "border-green-500",
-    bg: "bg-green-50 dark:bg-green-950/30",
-    iconColor: "text-green-500",
+    titleBg: "bg-[#1abc9c]",
+    bodyBg: "bg-[#dbfaf4] dark:bg-emerald-950/30",
+    titleText: "text-white",
   },
   WARNING: {
     icon: AlertTriangleIcon,
     label: "Warning",
-    border: "border-yellow-500",
-    bg: "bg-yellow-50 dark:bg-yellow-950/30",
-    iconColor: "text-yellow-600 dark:text-yellow-500",
+    titleBg: "bg-[#f0b37e]",
+    bodyBg: "bg-[#ffedcc] dark:bg-amber-950/30",
+    titleText: "text-white",
   },
   CAUTION: {
     icon: AlertOctagonIcon,
     label: "Caution",
-    border: "border-red-500",
-    bg: "bg-red-50 dark:bg-red-950/30",
-    iconColor: "text-red-500",
+    titleBg: "bg-[#f29f97]",
+    bodyBg: "bg-[#fdf3f2] dark:bg-red-950/30",
+    titleText: "text-white",
   },
   IMPORTANT: {
     icon: StarIcon,
     label: "Important",
-    border: "border-purple-500",
-    bg: "bg-purple-50 dark:bg-purple-950/30",
-    iconColor: "text-purple-500",
+    titleBg: "bg-[#1abc9c]",
+    bodyBg: "bg-[#dbfaf4] dark:bg-emerald-950/30",
+    titleText: "text-white",
   },
 } as const;
 
@@ -58,18 +58,20 @@ export function WikiCallout({
   const Icon = config.icon;
 
   return (
-    <div
-      className={cn(
-        "not-prose my-4 rounded-md border-l-4 p-4",
-        config.border,
-        config.bg
-      )}
-    >
-      <div className={cn("mb-2 flex items-center gap-2 font-semibold", config.iconColor)}>
+    <div className="not-prose my-6">
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 text-sm font-bold",
+          config.titleBg,
+          config.titleText
+        )}
+      >
         <Icon className="size-4" />
         {config.label}
       </div>
-      <div className="text-sm [&>p]:m-0">{children}</div>
+      <div className={cn("p-3 text-sm", config.bodyBg)}>
+        <div className="[&>p]:m-0">{children}</div>
+      </div>
     </div>
   );
 }

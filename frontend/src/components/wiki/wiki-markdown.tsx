@@ -75,7 +75,7 @@ export function WikiMarkdown({ content }: { content: string }) {
     <div className="prose dark:prose-invert wiki-prose max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        rehypePlugins={[[rehypeHighlight, { detect: true }]]}
         components={components}
       >
         {content}

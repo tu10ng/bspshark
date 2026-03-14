@@ -35,7 +35,7 @@ export function WikiSidebar({ tree }: { tree: WikiPageNested[] }) {
   return (
     <>
       <div className="flex items-center justify-between border-b border-wiki-sidebar-muted px-4 py-3">
-        <span className="text-xs font-bold uppercase tracking-wider text-wiki-sidebar-foreground/60">
+        <span className="text-xs font-bold uppercase tracking-wider text-wiki-sidebar-foreground/80">
           Wiki
         </span>
         <Button
@@ -50,13 +50,13 @@ export function WikiSidebar({ tree }: { tree: WikiPageNested[] }) {
       </div>
       <div className="px-3 py-2">
         <div className="relative">
-          <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-wiki-sidebar-foreground/40" />
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-wiki-sidebar-foreground/40" />
           <input
             type="text"
             placeholder="搜索文档..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="h-8 w-full rounded-md bg-wiki-sidebar-muted pl-8 pr-3 text-sm text-wiki-sidebar-foreground placeholder:text-wiki-sidebar-foreground/40 focus:outline-none focus:ring-1 focus:ring-wiki-sidebar-active"
+            className="h-8 w-full rounded-md bg-wiki-sidebar-muted/50 pl-8 pr-3 text-sm text-wiki-sidebar-foreground placeholder:text-wiki-sidebar-foreground/40 focus:outline-none focus:ring-1 focus:ring-wiki-sidebar-active"
           />
         </div>
       </div>

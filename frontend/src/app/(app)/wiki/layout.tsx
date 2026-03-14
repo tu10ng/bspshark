@@ -17,12 +17,12 @@ export default async function WikiLayout({
   return (
     <div className="-m-4 flex h-[calc(100vh-var(--header-height,56px))] md:-m-6">
       {/* Secondary sidebar */}
-      <div className="flex w-[280px] shrink-0 flex-col border-r bg-wiki-sidebar text-wiki-sidebar-foreground">
+      <div className="flex w-[300px] shrink-0 flex-col border-r bg-wiki-sidebar text-wiki-sidebar-foreground">
         <WikiSidebar tree={tree} />
       </div>
 
       {/* Content area */}
-      <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-10">{children}</div>
+      <div className="flex-1 overflow-y-auto bg-[#fcfcfc] p-6 dark:bg-background md:p-8 lg:p-10">{children}</div>
     </div>
   );
 }

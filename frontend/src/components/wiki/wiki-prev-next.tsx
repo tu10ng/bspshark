@@ -41,34 +41,28 @@ export function WikiPrevNext({
   if (!prev && !next) return null;
 
   return (
-    <nav className="mt-12 flex items-stretch gap-4 border-t pt-6">
+    <nav className="mt-12 flex items-center justify-between gap-4">
       {prev ? (
         <Link
           href={`/wiki/${prev.path}`}
-          className="group flex flex-1 items-center gap-2 rounded-md border border-wiki-accent/20 bg-wiki-accent/5 p-4 transition-colors hover:bg-wiki-accent/15"
+          className="inline-flex items-center gap-1.5 rounded-sm border border-black/10 bg-[#f3f6f6] px-3 py-1.5 text-sm text-foreground shadow-[inset_0_1px_2px_-1px_hsla(0,0%,100%,.5)] transition-colors hover:bg-[#e5ebeb] dark:border-white/10 dark:bg-[#2d2d2d] dark:hover:bg-[#3a3a3a]"
         >
-          <ChevronLeftIcon className="size-4 shrink-0 text-wiki-accent" />
-          <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">上一页</div>
-            <div className="truncate text-sm font-medium text-wiki-accent">{prev.title}</div>
-          </div>
+          <ChevronLeftIcon className="size-3.5" />
+          Previous
         </Link>
       ) : (
-        <div className="flex-1" />
+        <div />
       )}
       {next ? (
         <Link
           href={`/wiki/${next.path}`}
-          className="group flex flex-1 items-center justify-end gap-2 rounded-md border border-wiki-accent/20 bg-wiki-accent/5 p-4 text-right transition-colors hover:bg-wiki-accent/15"
+          className="inline-flex items-center gap-1.5 rounded-sm border border-black/10 bg-[#f3f6f6] px-3 py-1.5 text-sm text-foreground shadow-[inset_0_1px_2px_-1px_hsla(0,0%,100%,.5)] transition-colors hover:bg-[#e5ebeb] dark:border-white/10 dark:bg-[#2d2d2d] dark:hover:bg-[#3a3a3a]"
         >
-          <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">下一页</div>
-            <div className="truncate text-sm font-medium text-wiki-accent">{next.title}</div>
-          </div>
-          <ChevronRightIcon className="size-4 shrink-0 text-wiki-accent" />
+          Next
+          <ChevronRightIcon className="size-3.5" />
         </Link>
       ) : (
-        <div className="flex-1" />
+        <div />
       )}
     </nav>
   );

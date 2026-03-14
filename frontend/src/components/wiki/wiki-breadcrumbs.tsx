@@ -18,7 +18,7 @@ export function WikiBreadcrumbs({
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink render={<Link href="/wiki" />}>Wiki</BreadcrumbLink>
+          <BreadcrumbLink className="text-wiki-accent hover:text-wiki-accent/80" render={<Link href="/wiki" />}>Wiki</BreadcrumbLink>
         </BreadcrumbItem>
         {breadcrumbs.map((crumb, i) => {
           const path = breadcrumbs
@@ -35,7 +35,7 @@ export function WikiBreadcrumbs({
                 {isLast ? (
                   <BreadcrumbPage>{crumb.title}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink render={<Link href={`/wiki/${path}`} />}>
+                  <BreadcrumbLink className="text-wiki-accent hover:text-wiki-accent/80" render={<Link href={`/wiki/${path}`} />}>
                     {crumb.title}
                   </BreadcrumbLink>
                 )}

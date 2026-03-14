@@ -95,7 +95,7 @@
   --wiki-sidebar-muted: oklch(0.93 0 0);
   --wiki-sidebar-active: oklch(0.55 0.15 250);
   --wiki-sidebar-active-bg: oklch(0.92 0.03 250);
-  --wiki-accent: oklch(0.55 0.16 155);
+  --wiki-accent: oklch(0.55 0.13 250);
 }
 
 .dark {
@@ -135,7 +135,7 @@
   --wiki-sidebar-muted: oklch(0.25 0 0);
   --wiki-sidebar-active: oklch(0.7 0.12 250);
   --wiki-sidebar-active-bg: oklch(0.25 0.04 250);
-  --wiki-accent: oklch(0.65 0.14 155);
+  --wiki-accent: oklch(0.65 0.12 250);
 }
 
 @layer base {
@@ -196,46 +196,101 @@
 }
 
 /* Wiki prose - RTD 风格 */
+.wiki-prose {
+  line-height: 1.5;
+  color: oklch(0.35 0 0);
+}
+.dark .wiki-prose {
+  color: oklch(0.85 0 0);
+}
+
 .wiki-prose h1, .wiki-prose h2, .wiki-prose h3,
 .wiki-prose h4, .wiki-prose h5, .wiki-prose h6 {
   font-family: var(--font-serif), ui-serif, Georgia, serif;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
 }
+.wiki-prose h1 { font-size: 175%; }
 .wiki-prose h2 {
+  font-size: 150%;
   padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--border);
 }
+.wiki-prose h3 { font-size: 125%; }
+.wiki-prose h4 { font-size: 115%; }
+.wiki-prose h5 { font-size: 110%; }
+.wiki-prose h6 { font-size: 100%; }
 
 /* 蓝色链接 + 已访问紫色 */
 .wiki-prose a { color: oklch(0.55 0.15 250); text-decoration: none; }
-.wiki-prose a:hover { text-decoration: underline; }
+.wiki-prose a:hover { color: oklch(0.60 0.15 250); text-decoration: underline; }
 .wiki-prose a:visited { color: oklch(0.50 0.15 310); }
 .dark .wiki-prose a { color: oklch(0.70 0.12 250); }
+.dark .wiki-prose a:hover { color: oklch(0.75 0.12 250); }
 .dark .wiki-prose a:visited { color: oklch(0.65 0.12 310); }
 
 /* 红色内联 code */
 .wiki-prose :not(pre) > code {
   color: oklch(0.55 0.2 25);
-  background-color: oklch(0.97 0.005 25);
-  padding: 0.15em 0.35em;
-  border-radius: 0.25rem;
-  font-size: 0.875em;
+  background-color: oklch(1 0 0);
+  padding: 0 5px;
+  border: 1px solid oklch(0.90 0 0);
+  border-radius: 0;
+  font-size: 75%;
 }
 .wiki-prose :not(pre) > code::before,
 .wiki-prose :not(pre) > code::after { content: "" !important; }
 .dark .wiki-prose :not(pre) > code {
   color: oklch(0.75 0.15 25);
   background-color: oklch(0.22 0.02 25);
+  border-color: oklch(0.35 0 0);
+}
+
+/* 代码块 */
+.wiki-prose pre {
+  border: 1px solid oklch(0.90 0 0);
+  border-radius: 0;
+}
+.wiki-prose pre code {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.dark .wiki-prose pre {
+  border-color: oklch(0.30 0 0);
 }
 
 /* 表格：斑马纹 + 全边框 + 表头背景 */
 .wiki-prose th {
   background-color: oklch(0.95 0 0);
-  font-weight: 600;
+  font-weight: 700;
 }
 .dark .wiki-prose th { background-color: oklch(0.25 0 0); }
 .wiki-prose th, .wiki-prose td {
   border: 1px solid var(--border);
-  padding: 0.5rem 0.75rem;
+  padding: 8px 16px;
+}
+.wiki-prose thead th {
+  border-bottom-width: 2px;
 }
 .wiki-prose tbody tr:nth-child(even) { background-color: oklch(0.98 0 0); }
 .dark .wiki-prose tbody tr:nth-child(even) { background-color: oklch(0.19 0 0); }
+
+/* 列表间距 */
+.wiki-prose li {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+/* 引用块 */
+.wiki-prose blockquote {
+  margin-left: 1.5rem;
+  border-left: none;
+  padding-left: 0;
+  font-style: normal;
+}
+
+/* 水平线 */
+.wiki-prose hr {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}

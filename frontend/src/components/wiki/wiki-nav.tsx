@@ -27,18 +27,21 @@ function NavItem({
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
   const expanded = manualExpanded ?? (isActive || isParentOfActive || !!forceExpandAll);
 
+  // RTD-style font-size reduction for nested levels
+  const fontSize = depth === 0 ? "text-sm" : "text-[13px]";
+
   return (
     <li>
       <div className="flex items-center">
         {hasChildren && (
           <button
             onClick={() => setManualExpanded(!expanded)}
-            className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-wiki-sidebar-muted"
+            className="flex size-6 shrink-0 items-center justify-center hover:text-wiki-sidebar-foreground"
             aria-label={expanded ? "折叠" : "展开"}
           >
             <ChevronRightIcon
               className={cn(
-                "size-3.5 text-wiki-sidebar-foreground/50 transition-transform",
+                "size-3 text-wiki-sidebar-foreground/50 transition-transform",
                 expanded && "rotate-90"
               )}
             />
@@ -47,8 +50,9 @@ function NavItem({
         <Link
           href={href}
           className={cn(
-            "flex-1 rounded-md px-2 py-1.5 text-sm transition-colors",
-            !hasChildren && "ml-6",
+            "block flex-1 rounded-md px-2 py-1.5 transition-colors",
+            fontSize,
+            !hasChildren && "pl-6",
             isActive
               ? "border-l-2 border-wiki-sidebar-active bg-wiki-sidebar-active-bg font-medium text-wiki-sidebar-active"
               : "text-wiki-sidebar-foreground/80 hover:bg-wiki-sidebar-muted hover:text-wiki-sidebar-foreground"
@@ -83,7 +87,7 @@ export function WikiNav({
 }) {
   return (
     <nav className="py-2">
-      <ul className="space-y-0.5">
+      <ul>
         {tree.map((node) => (
           <NavItem
             key={node.id}

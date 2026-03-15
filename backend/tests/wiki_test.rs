@@ -1,7 +1,7 @@
 mod common;
 
 use actix_web::test;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 #[actix_web::test]
 async fn crud_wiki_pages() {
@@ -270,4 +270,210 @@ async fn reorder_pages() {
     assert_eq!(tree[0]["title"], "C");
     assert_eq!(tree[1]["title"], "A");
     assert_eq!(tree[2]["title"], "B");
+}
+
+/// Helper: create a wiki page and return (id, Value)
+async fn create_page(
+    app: &impl actix_web::dev::Service<actix_http::Request, Response = actix_web::dev::ServiceResponse, Error = actix_web::Error>,
+    title: &str,
+    slug: &str,
+    parent_id: Option<&str>,
+) -> (String, Value) {
+    let mut payload = json!({ "title": title, "slug": slug });
+    if let Some(pid) = parent_id {
+        payload["parent_id"] = json!(pid);
+    }
+    let req = test::TestRequest::post()
+        .uri("/api/v1/wiki/pages")
+        .set_json(&payload)
+        .to_request();
+    let resp = test::call_service(app, req).await;
+    assert_eq!(resp.status(), 201, "Failed to create page '{}'", title);
+    let page: Value = test::read_body_json(resp).await;
+    let id = page["id"].as_str().unwrap().to_string();
+    (id, page)
+}
+
+#[actix_web::test]
+async fn reorder_self_reference_rejected() {
+    let (app, _pool) = common::spawn_test_app().await;
+    let (a_id, _) = create_page(&app, "A", "a", None).await;
+
+    // Move A under itself — should be rejected
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/v1/wiki/pages/{}/reorder", a_id))
+        .set_json(json!({ "parent_id": a_id, "sort_order": 0 }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 400);
+    let body: Value = test::read_body_json(resp).await;
+    assert!(body["error"].as_str().unwrap().contains("own parent"));
+}
+
+#[actix_web::test]
+async fn reorder_cycle_detection() {
+    let (app, _pool) = common::spawn_test_app().await;
+
+    // Build chain: A → B → C
+    let (a_id, _) = create_page(&app, "A", "a", None).await;
+    let (b_id, _) = create_page(&app, "B", "b", Some(&a_id)).await;
+    let (c_id, _) = create_page(&app, "C", "c", Some(&b_id)).await;
+
+    // Move A under C — should be rejected (cycle: A→B→C→A)
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/v1/wiki/pages/{}/reorder", a_id))
+        .set_json(json!({ "parent_id": c_id, "sort_order": 0 }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 400);
+    let body: Value = test::read_body_json(resp).await;
+    assert!(body["error"].as_str().unwrap().contains("descendant"));
+}
+
+#[actix_web::test]
+async fn batch_reorder_cycle_rejected() {
+    let (app, _pool) = common::spawn_test_app().await;
+
+    // Build chain: A → B → C
+    let (a_id, _) = create_page(&app, "A", "a", None).await;
+    let (b_id, _) = create_page(&app, "B", "b", Some(&a_id)).await;
+    let (c_id, _) = create_page(&app, "C", "c", Some(&b_id)).await;
+
+    // batch move: A under C — should be rejected
+    let req = test::TestRequest::put()
+        .uri("/api/v1/wiki/pages/reorder-batch")
+        .set_json(json!({
+            "items": [
+                { "id": a_id, "parent_id": c_id, "sort_order": 0 }
+            ]
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 400);
+}
+
+#[actix_web::test]
+async fn batch_reorder_success() {
+    let (app, _pool) = common::spawn_test_app().await;
+
+    // Create root pages A(0), B(1), C(2)
+    let (a_id, _) = create_page(&app, "A", "a", None).await;
+    let (b_id, _) = create_page(&app, "B", "b", None).await;
+    let (c_id, _) = create_page(&app, "C", "c", None).await;
+
+    // Reverse order: C=0, B=1, A=2
+    let req = test::TestRequest::put()
+        .uri("/api/v1/wiki/pages/reorder-batch")
+        .set_json(json!({
+            "items": [
+                { "id": c_id, "parent_id": null, "sort_order": 0 },
+                { "id": b_id, "parent_id": null, "sort_order": 1 },
+                { "id": a_id, "parent_id": null, "sort_order": 2 }
+            ]
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 200);
+    let body: Value = test::read_body_json(resp).await;
+    assert_eq!(body["updated"], 3);
+
+    // Verify order
+    let req = test::TestRequest::get().uri("/api/v1/wiki").to_request();
+    let resp = test::call_service(&app, req).await;
+    let tree: Vec<Value> = test::read_body_json(resp).await;
+    assert_eq!(tree[0]["title"], "C");
+    assert_eq!(tree[1]["title"], "B");
+    assert_eq!(tree[2]["title"], "A");
+}
+
+#[actix_web::test]
+async fn reorder_cross_parent_move() {
+    let (app, _pool) = common::spawn_test_app().await;
+
+    // Create: Root1 → Child, Root2
+    let (root1_id, _) = create_page(&app, "Root1", "root1", None).await;
+    let (child_id, _) = create_page(&app, "Child", "child", Some(&root1_id)).await;
+    let (root2_id, _) = create_page(&app, "Root2", "root2", None).await;
+
+    // Move Child from Root1 to Root2
+    let req = test::TestRequest::put()
+        .uri(&format!("/api/v1/wiki/pages/{}/reorder", child_id))
+        .set_json(json!({ "parent_id": root2_id, "sort_order": 0 }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 200);
+
+    // Verify Child is now under Root2
+    let req = test::TestRequest::get().uri("/api/v1/wiki").to_request();
+    let resp = test::call_service(&app, req).await;
+    let tree: Vec<Value> = test::read_body_json(resp).await;
+
+    // Root1 should have no children
+    let root1 = tree.iter().find(|n| n["title"] == "Root1").unwrap();
+    assert!(root1["children"].as_array().unwrap().is_empty());
+
+    // Root2 should have Child
+    let root2 = tree.iter().find(|n| n["title"] == "Root2").unwrap();
+    assert_eq!(root2["children"][0]["title"], "Child");
+}
+
+#[actix_web::test]
+async fn slug_format_validation() {
+    let (app, _pool) = common::spawn_test_app().await;
+
+    // Uppercase — should fail
+    let req = test::TestRequest::post()
+        .uri("/api/v1/wiki/pages")
+        .set_json(json!({ "title": "Test", "slug": "MyPage" }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 400);
+
+    // Spaces — should fail
+    let req = test::TestRequest::post()
+        .uri("/api/v1/wiki/pages")
+        .set_json(json!({ "title": "Test", "slug": "my page" }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 400);
+
+    // Leading hyphen — should fail
+    let req = test::TestRequest::post()
+        .uri("/api/v1/wiki/pages")
+        .set_json(json!({ "title": "Test", "slug": "-leading" }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 400);
+
+    // Trailing hyphen — should fail
+    let req = test::TestRequest::post()
+        .uri("/api/v1/wiki/pages")
+        .set_json(json!({ "title": "Test", "slug": "trailing-" }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 400);
+
+    // Valid slug — should succeed
+    let req = test::TestRequest::post()
+        .uri("/api/v1/wiki/pages")
+        .set_json(json!({ "title": "Test", "slug": "my-page-123" }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 201);
+
+    // Chinese slug — should succeed
+    let req = test::TestRequest::post()
+        .uri("/api/v1/wiki/pages")
+        .set_json(json!({ "title": "Test", "slug": "入门指南" }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 201);
+
+    // Mixed valid — should succeed
+    let req = test::TestRequest::post()
+        .uri("/api/v1/wiki/pages")
+        .set_json(json!({ "title": "Test", "slug": "dev-开发" }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 201);
 }

@@ -60,12 +60,18 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
         .service(handlers::task::create_artifact)
         .service(handlers::task::delete_artifact)
         .service(handlers::task::get_task_experiences)
-        // Wiki pages
+        // Wiki pages (batch/static routes before {id} routes to avoid path capture)
         .service(handlers::wiki_page::get_wiki_tree)
         .service(handlers::wiki_page::get_wiki_page_by_path)
-        .service(handlers::wiki_page::get_wiki_page_by_id)
+        .service(handlers::wiki_page::batch_reorder_wiki_pages)
         .service(handlers::wiki_page::create_wiki_page)
+        .service(handlers::wiki_page::get_wiki_page_by_id)
         .service(handlers::wiki_page::update_wiki_page)
         .service(handlers::wiki_page::delete_wiki_page)
-        .service(handlers::wiki_page::reorder_wiki_page);
+        .service(handlers::wiki_page::reorder_wiki_page)
+        // Uploads
+        .service(handlers::upload::upload_file)
+        .service(
+            actix_files::Files::new("/api/v1/uploads", "./uploads"),
+        );
 }

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { UploadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WikiMarkdown } from "./wiki-markdown";
+import { uploadFile } from "@/lib/api";
 
 interface WikiEditorProps {
   mode: "create" | "edit";
@@ -23,6 +25,10 @@ interface WikiEditorProps {
   }) => Promise<void>;
 }
 
+function isImageFile(file: File): boolean {
+  return file.type.startsWith("image/");
+}
+
 export function WikiEditor({
   mode,
   initialData,
@@ -30,11 +36,15 @@ export function WikiEditor({
   onSave,
 }: WikiEditorProps) {
   const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [slug, setSlug] = useState(initialData?.slug ?? "");
   const [content, setContent] = useState(initialData?.content ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
 
   const handleSave = async () => {
     if (!title.trim() || !slug.trim()) {
@@ -70,19 +80,134 @@ export function WikiEditor({
     }
   };
 
+  const insertAtCursor = useCallback(
+    (text: string) => {
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        setContent((prev) => prev + text);
+        return;
+      }
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent =
+        content.substring(0, start) + text + content.substring(end);
+      setContent(newContent);
+      // Restore cursor position after the inserted text
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + text.length;
+        textarea.focus();
+      });
+    },
+    [content]
+  );
+
+  const replaceText = useCallback(
+    (oldText: string, newText: string) => {
+      setContent((prev) => prev.replace(oldText, newText));
+    },
+    []
+  );
+
+  const handleUploadFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+
+      setUploading((prev) => prev + files.length);
+
+      for (const file of files) {
+        const placeholder = `![Uploading ${file.name}...]()`;
+        insertAtCursor(placeholder + "\n");
+
+        try {
+          const result = await uploadFile(file);
+          const markdown = isImageFile(file)
+            ? `![${result.filename}](${result.url})`
+            : `[${result.filename}](${result.url})`;
+          replaceText(placeholder, markdown);
+        } catch {
+          replaceText(placeholder, `<!-- Upload failed: ${file.name} -->`);
+        } finally {
+          setUploading((prev) => prev - 1);
+        }
+      }
+    },
+    [insertAtCursor, replaceText]
+  );
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (const item of items) {
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        handleUploadFiles(files);
+      }
+    },
+    [handleUploadFiles]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        handleUploadFiles(files);
+      }
+    },
+    [handleUploadFiles]
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  }, []);
+
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      if (files.length > 0) {
+        handleUploadFiles(files);
+      }
+      // Reset input so same file can be selected again
+      e.target.value = "";
+    },
+    [handleUploadFiles]
+  );
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <h1 className="text-lg font-medium">
-          {mode === "create" ? "新建页面" : "编辑页面"}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-medium">
+            {mode === "create" ? "新建页面" : "编辑页面"}
+          </h1>
+          {uploading > 0 && (
+            <span className="text-sm text-muted-foreground">
+              上传中 ({uploading})...
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {error && <span className="text-sm text-destructive">{error}</span>}
           <Button variant="outline" onClick={() => router.back()}>
             取消
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || uploading > 0}>
             {saving ? "保存中..." : "保存"}
           </Button>
         </div>
@@ -116,16 +241,50 @@ export function WikiEditor({
 
       {/* Split editor */}
       <div className="flex min-h-0 flex-1">
-        <div className="flex flex-1 flex-col border-r">
+        <div
+          className="flex flex-1 flex-col border-r"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <div className="border-b px-4 py-2 text-xs font-medium text-muted-foreground">
             Markdown
           </div>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="flex-1 resize-none bg-transparent p-4 font-mono text-sm outline-none"
-            placeholder="输入 Markdown 内容..."
-          />
+          <div className="relative flex-1">
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onPaste={handlePaste}
+              className="size-full resize-none bg-transparent p-4 font-mono text-sm outline-none"
+              placeholder="输入 Markdown 内容..."
+            />
+            {dragOver && (
+              <div className="absolute inset-0 flex items-center justify-center bg-wiki-sidebar-active-bg/50 border-2 border-dashed border-wiki-sidebar-active">
+                <span className="rounded-md bg-background px-4 py-2 text-sm font-medium shadow-sm">
+                  松开以上传文件
+                </span>
+              </div>
+            )}
+          </div>
+          {/* Upload bar */}
+          <div className="border-t px-4 py-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-1.5 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground/70"
+            >
+              <UploadIcon className="size-3.5" />
+              通过拖拽、选择或粘贴来附加文件
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+          </div>
         </div>
         <div className="flex flex-1 flex-col">
           <div className="border-b px-4 py-2 text-xs font-medium text-muted-foreground">

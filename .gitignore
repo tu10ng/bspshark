@@ -15,6 +15,9 @@ backend/target/
 *.db-wal
 *.db-shm
 
+# Uploads
+backend/uploads/
+
 # Environment
 .env
 .env.local

@@ -5,49 +5,66 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::models::wiki_page::*;
 
+use serde::Serialize;
+
 const RESERVED_SLUGS: &[&str] = &["edit", "new"];
 
 fn validate_slug(slug: &str) -> Result<(), AppError> {
+    if slug.is_empty() {
+        return Err(AppError::BadRequest("Slug cannot be empty".to_string()));
+    }
     if RESERVED_SLUGS.contains(&slug) {
         return Err(AppError::BadRequest(format!(
             "Slug '{}' is reserved",
             slug
         )));
     }
-    if slug.is_empty() {
-        return Err(AppError::BadRequest("Slug cannot be empty".to_string()));
+    // Only allow lowercase ASCII alphanumerics, hyphens, and CJK characters
+    let valid = slug.chars().all(|c| {
+        c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || ('\u{4e00}'..='\u{9fa5}').contains(&c)
+    });
+    if !valid {
+        return Err(AppError::BadRequest(
+            "Slug may only contain lowercase letters, digits, hyphens, and Chinese characters"
+                .to_string(),
+        ));
+    }
+    if slug.starts_with('-') || slug.ends_with('-') {
+        return Err(AppError::BadRequest(
+            "Slug cannot start or end with a hyphen".to_string(),
+        ));
     }
     Ok(())
 }
 
-/// Build the full path and breadcrumbs for a page by walking up parent_id.
+/// Build the full path and breadcrumbs for a page using a single recursive CTE.
 async fn resolve_path(
     pool: &SqlitePool,
     page_id: &str,
 ) -> Result<(String, Vec<WikiPageBreadcrumb>), AppError> {
-    let mut breadcrumbs = Vec::new();
-    let mut current_id = page_id.to_string();
+    let rows = sqlx::query_as::<_, (String, String, String, i32)>(
+        "WITH RECURSIVE ancestors(id, title, slug, depth) AS (
+            SELECT id, title, slug, 0 FROM wiki_pages WHERE id = ?1
+            UNION ALL
+            SELECT wp.id, wp.title, wp.slug, a.depth + 1
+            FROM wiki_pages wp
+            JOIN ancestors a ON wp.id = (SELECT parent_id FROM wiki_pages WHERE id = a.id)
+            WHERE (SELECT parent_id FROM wiki_pages WHERE id = a.id) IS NOT NULL
+        ) SELECT id, title, slug, depth FROM ancestors ORDER BY depth DESC",
+    )
+    .bind(page_id)
+    .fetch_all(pool)
+    .await?;
 
-    loop {
-        let page = sqlx::query_as::<_, WikiPage>("SELECT * FROM wiki_pages WHERE id = ?1")
-            .bind(&current_id)
-            .fetch_one(pool)
-            .await
-            .map_err(|_| AppError::NotFound("Page not found".to_string()))?;
-
-        breadcrumbs.push(WikiPageBreadcrumb {
-            id: page.id.clone(),
-            title: page.title.clone(),
-            slug: page.slug.clone(),
-        });
-
-        match page.parent_id {
-            Some(pid) => current_id = pid,
-            None => break,
-        }
+    if rows.is_empty() {
+        return Err(AppError::NotFound("Page not found".to_string()));
     }
 
-    breadcrumbs.reverse();
+    let breadcrumbs: Vec<WikiPageBreadcrumb> = rows
+        .into_iter()
+        .map(|(id, title, slug, _)| WikiPageBreadcrumb { id, title, slug })
+        .collect();
+
     let path = breadcrumbs
         .iter()
         .map(|b| b.slug.as_str())
@@ -340,13 +357,39 @@ async fn reorder_wiki_page(
         .await
         .map_err(|_| AppError::NotFound("Wiki page not found".to_string()))?;
 
-    // Verify new parent exists if specified
+    // Verify new parent exists if specified + cycle detection
     if let Some(parent_id) = &body.parent_id {
+        // Self-reference check
+        if *parent_id == id {
+            return Err(AppError::BadRequest(
+                "A page cannot be its own parent".to_string(),
+            ));
+        }
+
         sqlx::query("SELECT id FROM wiki_pages WHERE id = ?1")
             .bind(parent_id)
             .fetch_one(pool.get_ref())
             .await
             .map_err(|_| AppError::NotFound("Parent page not found".to_string()))?;
+
+        // Check if parent_id is a descendant of id (would create a cycle)
+        let is_descendant: i32 = sqlx::query_scalar(
+            "WITH RECURSIVE descendants(id) AS (
+                SELECT ?1
+                UNION ALL
+                SELECT wp.id FROM wiki_pages wp JOIN descendants d ON wp.parent_id = d.id
+            ) SELECT COUNT(*) FROM descendants WHERE id = ?2",
+        )
+        .bind(&id)
+        .bind(parent_id)
+        .fetch_one(pool.get_ref())
+        .await?;
+
+        if is_descendant > 0 {
+            return Err(AppError::BadRequest(
+                "Cannot move a page under its own descendant".to_string(),
+            ));
+        }
     }
 
     sqlx::query(
@@ -365,4 +408,73 @@ async fn reorder_wiki_page(
         .await?;
 
     Ok(HttpResponse::Ok().json(page))
+}
+
+#[derive(Serialize)]
+struct BatchReorderResponse {
+    updated: usize,
+}
+
+/// PUT /api/v1/wiki/pages/reorder-batch — batch reorder/move pages
+#[put("/api/v1/wiki/pages/reorder-batch")]
+pub async fn batch_reorder_wiki_pages(
+    pool: web::Data<SqlitePool>,
+    body: web::Json<BatchReorderWikiPages>,
+) -> Result<HttpResponse, AppError> {
+    if body.items.is_empty() {
+        return Err(AppError::BadRequest("Items cannot be empty".to_string()));
+    }
+
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    for item in &body.items {
+        // Cycle detection for each item
+        if let Some(parent_id) = &item.parent_id {
+            if *parent_id == item.id {
+                return Err(AppError::BadRequest(
+                    "A page cannot be its own parent".to_string(),
+                ));
+            }
+
+            // Check against in-transaction state (intermediate moves already applied)
+            let is_descendant: i32 = sqlx::query_scalar(
+                "WITH RECURSIVE descendants(id) AS (
+                    SELECT ?1
+                    UNION ALL
+                    SELECT wp.id FROM wiki_pages wp JOIN descendants d ON wp.parent_id = d.id
+                ) SELECT COUNT(*) FROM descendants WHERE id = ?2",
+            )
+            .bind(&item.id)
+            .bind(parent_id)
+            .fetch_one(&mut *tx)
+            .await?;
+
+            if is_descendant > 0 {
+                return Err(AppError::BadRequest(
+                    "Cannot move a page under its own descendant".to_string(),
+                ));
+            }
+        }
+
+        sqlx::query(
+            "UPDATE wiki_pages SET parent_id = ?1, sort_order = ?2,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?3",
+        )
+        .bind(&item.parent_id)
+        .bind(item.sort_order)
+        .bind(&item.id)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(HttpResponse::Ok().json(BatchReorderResponse {
+        updated: body.items.len(),
+    }))
 }

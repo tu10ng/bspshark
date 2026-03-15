@@ -21,7 +21,11 @@ export default async function WikiPage({
   try {
     const page = await getWikiPageByPath(path);
     return <WikiPageContent page={page} tree={tree} />;
-  } catch {
-    notFound();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "";
+    if (message.toLowerCase().includes("not found")) {
+      notFound();
+    }
+    throw e;
   }
 }

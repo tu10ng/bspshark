@@ -34,6 +34,7 @@ export default async function WikiEditPage({
         slug: page.slug,
         content: page.content,
       }}
+      parentId={page.parent_id ?? undefined}
       onSave={handleSave}
     />
   );

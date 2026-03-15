@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PlusIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WikiNav } from "./wiki-nav";
+import { WikiDndProvider } from "./wiki-dnd-provider";
 import type { WikiPageNested } from "@/lib/types";
 
 function filterTree(
@@ -20,7 +21,7 @@ function filterTree(
       node.title.toLowerCase().includes(lower) ||
       childMatches.length > 0
     ) {
-      result.push({ ...node, children: childMatches.length > 0 ? childMatches : node.children });
+      result.push({ ...node, children: childMatches });
     }
   }
   return result;
@@ -62,7 +63,9 @@ export function WikiSidebar({ tree }: { tree: WikiPageNested[] }) {
       </div>
       <div className="flex-1 overflow-y-auto px-2">
         {filteredTree.length > 0 ? (
-          <WikiNav tree={filteredTree} forceExpandAll={isSearching} />
+          <WikiDndProvider tree={tree}>
+            <WikiNav tree={filteredTree} forceExpandAll={isSearching} />
+          </WikiDndProvider>
         ) : (
           <p className="px-3 py-4 text-center text-xs text-wiki-sidebar-foreground/40">
             未找到匹配文档

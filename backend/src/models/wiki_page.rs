@@ -55,3 +55,15 @@ pub struct ReorderWikiPage {
     pub parent_id: Option<String>,
     pub sort_order: i32,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct BatchReorderItem {
+    pub id: String,
+    pub parent_id: Option<String>,
+    pub sort_order: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BatchReorderWikiPages {
+    pub items: Vec<BatchReorderItem>,
+}

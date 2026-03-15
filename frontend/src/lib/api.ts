@@ -30,7 +30,14 @@ async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+    let message = `${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body.error) message = body.error;
+    } catch {
+      // response body not JSON, keep status text
+    }
+    throw new Error(message);
   }
   return res.json();
 }
@@ -42,7 +49,7 @@ export function getStats(): Promise<DashboardStats> {
 
 // Wiki Pages
 export function getWikiTree(): Promise<WikiPageNested[]> {
-  return fetchApi("/api/v1/wiki");
+  return fetchApi("/api/v1/wiki", { cache: "no-store" });
 }
 
 export function getWikiPageByPath(path: string): Promise<WikiPageWithPath> {
@@ -87,6 +94,37 @@ export function reorderWikiPage(
     method: "PUT",
     body: JSON.stringify(data),
   });
+}
+
+export function batchReorderWikiPages(
+  items: { id: string; parent_id: string | null; sort_order: number }[]
+): Promise<{ updated: number }> {
+  return fetchApi("/api/v1/wiki/pages/reorder-batch", {
+    method: "PUT",
+    body: JSON.stringify({ items }),
+  });
+}
+
+export async function uploadFile(
+  file: File
+): Promise<{ url: string; filename: string; size: number; content_type: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${BASE_URL}/api/v1/uploads`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    let message = `${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body.error) message = body.error;
+    } catch {
+      // response body not JSON, keep status text
+    }
+    throw new Error(message);
+  }
+  return res.json();
 }
 
 // Tools

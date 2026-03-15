@@ -8,7 +8,7 @@ import { WikiCallout, type CalloutType } from "./wiki-callout";
 import { rehypeCodeMeta } from "./code-block/rehype-code-meta";
 import { CodeBlock } from "./code-block/code-block";
 
-const CALLOUT_TYPES = new Set<string>(["NOTE", "TIP", "WARNING", "CAUTION", "IMPORTANT"]);
+const CALLOUT_TYPES = new Set<string>(["NOTE", "TIP", "WARNING", "CAUTION", "IMPORTANT", "EXPERIENCE"]);
 
 function extractBlockquoteText(children: React.ReactNode): string {
   const parts: string[] = [];

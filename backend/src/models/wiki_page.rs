@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+use super::wiki_page_section::WikiPageSection;
+
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct WikiPage {
     pub id: String,
@@ -9,6 +11,7 @@ pub struct WikiPage {
     pub slug: String,
     pub content: String,
     pub sort_order: i32,
+    pub sections_enabled: i32,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -33,6 +36,8 @@ pub struct WikiPageWithPath {
     pub page: WikiPage,
     pub path: String,
     pub breadcrumbs: Vec<WikiPageBreadcrumb>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sections: Option<Vec<WikiPageSection>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,6 +46,7 @@ pub struct CreateWikiPage {
     pub title: String,
     pub slug: String,
     pub content: Option<String>,
+    pub sections_enabled: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,6 +54,7 @@ pub struct UpdateWikiPage {
     pub title: Option<String>,
     pub slug: Option<String>,
     pub content: Option<String>,
+    pub sections_enabled: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]

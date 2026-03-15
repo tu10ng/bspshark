@@ -31,11 +31,12 @@ src/
 │   ├── ui/                 # shadcn/ui 组件（CLI 生成，勿手动修改）
 │   ├── layout/             # 布局组件（sidebar, header, nav, theme-toggle）
 │   ├── dashboard/          # Dashboard 组件（stats-cards, quick-tools）
-│   ├── wiki/               # Wiki 组件（wiki-sidebar, wiki-nav, wiki-editor, wiki-markdown, wiki-heading, wiki-callout, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content）
+│   ├── wiki/               # Wiki 组件（wiki-sidebar, wiki-nav, wiki-editor, wiki-markdown, wiki-heading, wiki-callout, wiki-experience-inline, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content, wiki-version-history）
+│   ├── knowledge/          # 知识组件（tree-flow, node-form, knowledge-version-timeline 等）
 │   └── tools/              # Tools 组件（language-tabs, tool-card, tool-catalog, tool-executor, tool-output）
 ├── lib/
 │   ├── utils.ts            # cn() 类名合并
-│   ├── types.ts            # 共享 TypeScript 类型（WikiPage, Tool, ToolExecution, DashboardStats, KnowledgeTree, Experience, Task 等）
+│   ├── types.ts            # 共享 TypeScript 类型（WikiPage, KnowledgeItem, KnowledgeRelation, WikiPageSection, Experience, Task, version types 等）
 │   └── api.ts              # API 客户端封装（server 用绝对 URL，client 用代理）
 ├── hooks/
 │   ├── use-debounce.ts     # 搜索防抖

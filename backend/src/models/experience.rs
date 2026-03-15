@@ -10,6 +10,7 @@ pub struct Experience {
     pub status: String,
     pub resolution_notes: Option<String>,
     pub tags: String, // JSON array as string
+    pub content: Option<String>, // Full Markdown content (description is the summary)
     pub created_at: String,
     pub updated_at: String,
 }

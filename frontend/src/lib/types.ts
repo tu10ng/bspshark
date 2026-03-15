@@ -7,6 +7,7 @@ export interface WikiPage {
   slug: string;
   content: string;
   sort_order: number;
+  sections_enabled: number;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ export interface WikiPageBreadcrumb {
 export interface WikiPageWithPath extends WikiPage {
   path: string;
   breadcrumbs: WikiPageBreadcrumb[];
+  sections?: WikiPageSection[];
 }
 
 export interface Tool {
@@ -110,6 +112,7 @@ export interface Experience {
   status: "active" | "resolved" | "transformed";
   resolution_notes: string | null;
   tags: string; // JSON array as string
+  content: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -151,4 +154,81 @@ export interface TaskArtifact {
 export interface TaskDetail extends Task {
   nodes: TreeNode[];
   artifacts: TaskArtifact[];
+}
+
+// Knowledge Items (new knowledge management system)
+
+export interface KnowledgeItem {
+  id: string;
+  title: string;
+  content: string;
+  slug: string;
+  tags: string; // JSON array as string
+  current_version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeItemWithRefs extends KnowledgeItem {
+  wiki_references: WikiReference[];
+  experience_ids: string[];
+}
+
+export interface WikiReference {
+  wiki_page_id: string;
+  wiki_page_title: string;
+  wiki_page_slug: string;
+}
+
+export interface KnowledgeItemVersion {
+  id: string;
+  knowledge_item_id: string;
+  version: number;
+  title: string;
+  content: string;
+  source_wiki_page_id: string | null;
+  source_wiki_page_title?: string;
+  created_at: string;
+}
+
+export interface WikiPageSection {
+  id: string;
+  section_type: "knowledge" | "experience" | "freeform";
+  knowledge_item?: KnowledgeItem;
+  experience?: Experience;
+  freeform_content?: string;
+  sort_order: number;
+}
+
+export interface WikiPageVersion {
+  id: string;
+  wiki_page_id: string;
+  version: number;
+  title: string;
+  content: string;
+  sections_snapshot?: string;
+  created_at: string;
+}
+
+export interface ExperienceVersion {
+  id: string;
+  experience_id: string;
+  version: number;
+  title: string;
+  description: string | null;
+  content: string | null;
+  severity: string;
+  status: string;
+  resolution_notes: string | null;
+  source_wiki_page_id: string | null;
+  created_at: string;
+}
+
+export interface KnowledgeRelation {
+  id: string;
+  source_id: string;
+  target_id: string;
+  relation_type: "parent_child" | "precedes" | "related_to";
+  sort_order: number;
+  created_at: string;
 }

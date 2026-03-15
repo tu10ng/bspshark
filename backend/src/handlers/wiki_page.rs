@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::models::wiki_page::*;
+use crate::services::{auto_identify, versioning, wiki_compose};
 
 use serde::Serialize;
 
@@ -163,10 +164,17 @@ async fn get_wiki_page_by_path(
     let page = current_page.unwrap();
     let (path, breadcrumbs) = resolve_path(pool.get_ref(), &page.id).await?;
 
+    let sections = if page.sections_enabled != 0 {
+        Some(wiki_compose::load_sections(pool.get_ref(), &page.id).await?)
+    } else {
+        None
+    };
+
     Ok(HttpResponse::Ok().json(WikiPageWithPath {
         page,
         path,
         breadcrumbs,
+        sections,
     }))
 }
 
@@ -186,10 +194,17 @@ async fn get_wiki_page_by_id(
 
     let (url_path, breadcrumbs) = resolve_path(pool.get_ref(), &page.id).await?;
 
+    let sections = if page.sections_enabled != 0 {
+        Some(wiki_compose::load_sections(pool.get_ref(), &page.id).await?)
+    } else {
+        None
+    };
+
     Ok(HttpResponse::Ok().json(WikiPageWithPath {
         page,
         path: url_path,
         breadcrumbs,
+        sections,
     }))
 }
 
@@ -231,6 +246,8 @@ async fn create_wiki_page(
     }
 
     let id = Uuid::new_v4().to_string();
+    let sections_enabled = if body.sections_enabled.unwrap_or(false) { 1 } else { 0 };
+    let content = body.content.as_deref().unwrap_or("");
 
     // Auto sort_order = max + 1
     let max_sort: Option<i32> = sqlx::query_scalar(
@@ -243,16 +260,39 @@ async fn create_wiki_page(
     let sort_order = max_sort.unwrap_or(-1) + 1;
 
     sqlx::query(
-        "INSERT INTO wiki_pages (id, parent_id, title, slug, content, sort_order)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        "INSERT INTO wiki_pages (id, parent_id, title, slug, content, sort_order, sections_enabled)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     )
     .bind(&id)
     .bind(&body.parent_id)
     .bind(&body.title)
     .bind(&body.slug)
-    .bind(body.content.as_deref().unwrap_or(""))
+    .bind(content)
     .bind(sort_order)
+    .bind(sections_enabled)
     .execute(pool.get_ref())
+    .await?;
+
+    // If sections enabled and content is not empty, run auto-identify
+    if sections_enabled != 0 && !content.is_empty() {
+        let result = auto_identify::identify_and_create(pool.get_ref(), &id, content).await?;
+        wiki_compose::save_sections(pool.get_ref(), &id, &result.sections).await?;
+    }
+
+    // Create initial wiki page version
+    let sections_snapshot = if sections_enabled != 0 {
+        Some(wiki_compose::create_sections_snapshot(pool.get_ref(), &id).await?)
+    } else {
+        None
+    };
+    versioning::create_wiki_page_version(
+        pool.get_ref(),
+        &id,
+        1,
+        &body.title,
+        content,
+        sections_snapshot.as_deref(),
+    )
     .await?;
 
     let page = sqlx::query_as::<_, WikiPage>("SELECT * FROM wiki_pages WHERE id = ?1")
@@ -303,15 +343,55 @@ async fn update_wiki_page(
         }
     }
 
+    // Handle sections_enabled toggle
+    let sections_enabled = match body.sections_enabled {
+        Some(true) => 1,
+        Some(false) => 0,
+        None => existing.sections_enabled,
+    };
+
     sqlx::query(
-        "UPDATE wiki_pages SET title = ?1, slug = ?2, content = ?3,
-         updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?4",
+        "UPDATE wiki_pages SET title = ?1, slug = ?2, content = ?3, sections_enabled = ?4,
+         updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?5",
     )
     .bind(title)
     .bind(slug)
     .bind(content)
+    .bind(sections_enabled)
     .bind(&id)
     .execute(pool.get_ref())
+    .await?;
+
+    // If sections enabled, run auto-identify
+    if sections_enabled != 0 {
+        let result =
+            auto_identify::identify_and_create(pool.get_ref(), &id, content).await?;
+        wiki_compose::save_sections(pool.get_ref(), &id, &result.sections).await?;
+    }
+
+    // Create new wiki page version
+    let current_version: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(MAX(version), 0) FROM wiki_page_versions WHERE wiki_page_id = ?",
+    )
+    .bind(&id)
+    .fetch_one(pool.get_ref())
+    .await
+    .map_err(AppError::from)?;
+
+    let sections_snapshot = if sections_enabled != 0 {
+        Some(wiki_compose::create_sections_snapshot(pool.get_ref(), &id).await?)
+    } else {
+        None
+    };
+
+    versioning::create_wiki_page_version(
+        pool.get_ref(),
+        &id,
+        current_version + 1,
+        title,
+        content,
+        sections_snapshot.as_deref(),
+    )
     .await?;
 
     let page = sqlx::query_as::<_, WikiPage>("SELECT * FROM wiki_pages WHERE id = ?1")

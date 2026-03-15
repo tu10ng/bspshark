@@ -14,6 +14,12 @@ import type {
   TaskDetail,
   TaskArtifact,
   TreeNode,
+  KnowledgeItem,
+  KnowledgeItemWithRefs,
+  KnowledgeItemVersion,
+  KnowledgeRelation,
+  WikiPageVersion,
+  ExperienceVersion,
 } from "./types";
 
 const BASE_URL =
@@ -65,6 +71,7 @@ export function createWikiPage(data: {
   title: string;
   slug: string;
   content?: string;
+  sections_enabled?: boolean;
 }): Promise<WikiPage> {
   return fetchApi("/api/v1/wiki/pages", {
     method: "POST",
@@ -74,7 +81,7 @@ export function createWikiPage(data: {
 
 export function updateWikiPage(
   id: string,
-  data: { title?: string; slug?: string; content?: string }
+  data: { title?: string; slug?: string; content?: string; sections_enabled?: boolean }
 ): Promise<WikiPage> {
   return fetchApi(`/api/v1/wiki/pages/${id}`, {
     method: "PUT",
@@ -453,4 +460,94 @@ export function deleteTaskArtifact(
 
 export function getTaskExperiences(taskId: string): Promise<Experience[]> {
   return fetchApi(`/api/v1/tasks/${taskId}/experiences`);
+}
+
+// Knowledge Items
+export function getKnowledgeItems(params?: {
+  q?: string;
+  tag?: string;
+}): Promise<KnowledgeItem[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.q) searchParams.set("q", params.q);
+  if (params?.tag) searchParams.set("tag", params.tag);
+  const qs = searchParams.toString();
+  return fetchApi(`/api/v1/knowledge-items${qs ? `?${qs}` : ""}`);
+}
+
+export function getKnowledgeItem(id: string): Promise<KnowledgeItemWithRefs> {
+  return fetchApi(`/api/v1/knowledge-items/${id}`);
+}
+
+export function createKnowledgeItem(data: {
+  title: string;
+  content?: string;
+  slug?: string;
+  tags?: string[];
+}): Promise<KnowledgeItem> {
+  return fetchApi("/api/v1/knowledge-items", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateKnowledgeItem(
+  id: string,
+  data: { title?: string; content?: string; slug?: string; tags?: string[] }
+): Promise<KnowledgeItem> {
+  return fetchApi(`/api/v1/knowledge-items/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteKnowledgeItem(id: string): Promise<void> {
+  return fetchApi(`/api/v1/knowledge-items/${id}`, { method: "DELETE" });
+}
+
+// Knowledge Relations
+export function createKnowledgeRelation(data: {
+  source_id: string;
+  target_id: string;
+  relation_type: string;
+  sort_order?: number;
+}): Promise<KnowledgeRelation> {
+  return fetchApi("/api/v1/knowledge-relations", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteKnowledgeRelation(id: string): Promise<void> {
+  return fetchApi(`/api/v1/knowledge-relations/${id}`, { method: "DELETE" });
+}
+
+export function getKnowledgeItemRelations(id: string): Promise<KnowledgeRelation[]> {
+  return fetchApi(`/api/v1/knowledge-items/${id}/relations`);
+}
+
+// Version History
+export function getKnowledgeItemVersions(id: string): Promise<KnowledgeItemVersion[]> {
+  return fetchApi(`/api/v1/knowledge-items/${id}/versions`);
+}
+
+export function getKnowledgeItemVersion(
+  id: string,
+  version: number
+): Promise<KnowledgeItemVersion> {
+  return fetchApi(`/api/v1/knowledge-items/${id}/versions/${version}`);
+}
+
+export function getExperienceVersions(id: string): Promise<ExperienceVersion[]> {
+  return fetchApi(`/api/v1/experiences/${id}/versions`);
+}
+
+export function getWikiPageVersions(id: string): Promise<WikiPageVersion[]> {
+  return fetchApi(`/api/v1/wiki/pages/${id}/versions`);
+}
+
+export function getWikiPageVersion(
+  id: string,
+  version: number
+): Promise<WikiPageVersion> {
+  return fetchApi(`/api/v1/wiki/pages/${id}/versions/${version}`);
 }

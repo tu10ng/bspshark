@@ -7,6 +7,7 @@ pub struct KnowledgeTree {
     pub name: String,
     pub description: Option<String>,
     pub module: Option<String>,
+    pub view_config: String,
     pub created_at: String,
     pub updated_at: String,
 }

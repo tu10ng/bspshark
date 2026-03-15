@@ -5,6 +5,7 @@ pub mod db;
 pub mod error;
 pub mod handlers;
 pub mod models;
+pub mod services;
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -60,6 +61,24 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
         .service(handlers::task::create_artifact)
         .service(handlers::task::delete_artifact)
         .service(handlers::task::get_task_experiences)
+        // Knowledge items
+        .service(handlers::knowledge_item::list_knowledge_items)
+        .service(handlers::knowledge_item::create_knowledge_item)
+        .service(handlers::knowledge_item::get_knowledge_item)
+        .service(handlers::knowledge_item::update_knowledge_item)
+        .service(handlers::knowledge_item::delete_knowledge_item)
+        // Knowledge relations
+        .service(handlers::knowledge_item::create_knowledge_relation)
+        .service(handlers::knowledge_item::delete_knowledge_relation)
+        .service(handlers::knowledge_item::get_knowledge_item_relations)
+        // Knowledge item versions
+        .service(handlers::knowledge_item::list_knowledge_item_versions)
+        .service(handlers::knowledge_item::get_knowledge_item_version)
+        // Experience versions
+        .service(handlers::knowledge_item::list_experience_versions)
+        // Wiki page versions (register before {id} catch-all)
+        .service(handlers::knowledge_item::list_wiki_page_versions)
+        .service(handlers::knowledge_item::get_wiki_page_version)
         // Wiki pages (batch/static routes before {id} routes to avoid path capture)
         .service(handlers::wiki_page::get_wiki_tree)
         .service(handlers::wiki_page::get_wiki_page_by_path)

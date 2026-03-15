@@ -6,10 +6,14 @@
 
 ## 术语表
 
-- **知识（knowledge）**：树中的基本单元，所有节点都是知识，可无限嵌套
-- **经验（experience）**：独立实体（原称"坑"），通过多对多关联到知识节点
+- **知识项（knowledge item）**：原子知识单元，拥有完整 Markdown 内容和全局唯一 slug，可跨 Wiki 共享引用
+- **经验（experience）**：独立实体（原称"坑"），通过多对多关联到知识项
 - **并行知识（knowledge instance）**：同一知识的不同变体（如 Ubuntu vs Arch）
-- **知识树（knowledge tree）**：以树形结构组织的知识集合
+- **知识树（knowledge tree）**：知识关系的可视化视图，通过 `knowledge_tree_roots` 指定入口节点
+- **知识关系（knowledge relation）**：知识项之间的关系（parent_child / precedes / related_to）
+- **Wiki 页面 section**：Wiki 页面的组成单元（知识引用 / 经验引用 / 自由文本）
+- **自动识别**：保存 Wiki 时后端自动解析 Markdown，创建/更新知识项和经验
+- **版本化**：知识、经验、Wiki 每次内容变更都保留版本快照
 
 ## 技术栈
 
@@ -47,10 +51,11 @@ bspshark/
 │   │   ├── lib.rs     # 路由注册
 │   │   ├── db.rs      # SqlitePool 初始化 + 迁移
 │   │   ├── error.rs   # AppError 枚举
-│   │   ├── models/    # 数据模型 (knowledge_tree, experience, task, wiki_page)
-│   │   └── handlers/  # HTTP 处理器 (knowledge_tree, tree_node, experience, task, wiki_page)
+│   │   ├── models/    # 数据模型 (knowledge_tree, knowledge_item, knowledge_relation, experience, task, wiki_page, wiki_page_section)
+│   │   ├── services/  # 业务逻辑层 (knowledge, versioning, auto_identify, wiki_compose)
+│   │   └── handlers/  # HTTP 处理器 (knowledge_tree, knowledge_item, tree_node, experience, task, wiki_page)
 │   ├── tests/         # 集成测试
-│   ├── migrations/    # SQL 迁移 (001_initial_schema, 002_knowledge_system, 003_knowledge_instances, 004_remove_node_type_rename_experience, 005_wiki_pages)
+│   ├── migrations/    # SQL 迁移 (001-007)
 │   └── tools/         # 工具脚本 (python/, java/, bash/)
 └── Makefile           # 统一命令入口
 ```
@@ -89,25 +94,35 @@ make db-migrate     # 数据库迁移
 
 ## 知识管理系统
 
-### 核心设计思想
+### 核心架构（Wiki 作为知识创建入口）
 
-- **全局知识树**: 以树形结构表示业务流程，主干由顶层同级节点（sort_order）决定，子节点为分支
-- **经验是独立实体**: 经验独立存储，被多棵树的节点引用（多对多）。修改经验时所有引用处自动同步
-- **经验的生命周期**: `active` → `resolved`（已修复）/ `transformed`（变成了另一个经验），变更时附带说明
-- **自由嵌套**: 树节点不限层级，任何节点可以有子节点，所有节点统一为"知识"
-- **任务引用知识树**: 组长派任务时引用知识树节点，系统根据模块自动识别相关的经验
-- **归档材料**: 任务可附加设计文档、串讲视频等链接（只存 URL，不做文件上传）
+- **Wiki 是创建入口**：用户正常写 Markdown，保存时后端自动识别知识和经验
+- **知识项是原子单位**：`knowledge_items` 拥有独立 Markdown 内容和全局唯一 slug
+- **经验是独立实体**：经验独立存储，被知识项引用（`knowledge_experience_refs`），修改时所有引用处同步
+- **Wiki 页面 = sections 的有序组合**：`wiki_page_sections` 表存储知识引用 + 经验引用 + 自由文本
+- **知识树 = 关系视图**：`knowledge_tree_roots` 指定入口，`knowledge_relations` 定义知识间关系
+- **全面版本化**：`knowledge_item_versions` + `experience_versions` + `wiki_page_versions`
+
+### 自动识别规则
+
+| Markdown 结构 | 识别为 | 说明 |
+|---------------|--------|------|
+| `## 标题` + 下方内容 | **知识** | H2 → 知识标题，content → 知识内容 |
+| `> [!EXPERIENCE] 标题` | **经验** | 从知识 section 中提取 |
+| H2 之前的内容 | **自由文本** | 原样保存 |
+
+### 去重逻辑
+
+- 标题精确匹配（大小写不敏感）→ 关联已有知识/经验
+- 未找到 → 创建新知识项/经验
+- 内容变化时自动创建新版本
 
 ### 关键约束
 
-- **树节点排序**: `sort_order` 整数字段控制兄弟节点顺序
-- **经验的搜索**: 使用 LIKE 模糊搜索（title/description/tags），FTS5 虚拟表保留用于未来优化
-- **流程图可视化**: 使用 React Flow (`@xyflow/react`)，水平布局，只读展示 + 点击查看详情，编辑通过表单完成
-- **统一节点样式**: 所有节点统一蓝色风格（`KnowledgeNode`），子节点用更浅色调区分层级
-- **展开/折叠**: 有子节点的知识可展开查看详细子节点，折叠时显示子节点总数
-- **泳道视图**: 展开节点如果有并行知识实例，自动切换为泳道布局
-- **自动识别经验**: 创建任务时根据 modules 字段匹配 knowledge_trees → tree_nodes → experiences
-- **级联删除**: 所有关联表 ON DELETE CASCADE
+- **slug 全局唯一**：用于 URL 和去重
+- **版本号递增**：content 变化时 `current_version` +1
+- **sections_enabled 标志**：Wiki 页面可选择是否启用自动识别
+- **级联删除**：所有关联表 ON DELETE CASCADE（`knowledge_experience_refs` 和 `wiki_page_sections` 中引用用 ON DELETE SET NULL）
 
 ## Wiki 文档系统
 
@@ -116,7 +131,7 @@ make db-migrate     # 数据库迁移
 - **数据模型**: `wiki_pages` 表，自引用树结构（`parent_id` FK），slug 路径寻址
 - **前端布局**: 嵌套在 App Layout 内，RTD (Read the Docs) 风格：280px 二级侧边栏（独立背景色 + 搜索框 + 导航树）+ 800px 限宽内容区
 - **Markdown 渲染**: react-markdown + remark-gfm + rehype-highlight，`prose dark:prose-invert wiki-prose` 样式（衬线标题、蓝色链接、红色内联代码、斑马纹表格、heading 锚点 `¶`）
-- **告示框**: 支持 GitHub Alerts 语法（`> [!NOTE]`/`[!TIP]`/`[!WARNING]`/`[!CAUTION]`/`[!IMPORTANT]`），由 `WikiCallout` 组件渲染
+- **告示框**: 支持 GitHub Alerts 语法（`> [!NOTE]`/`[!TIP]`/`[!WARNING]`/`[!CAUTION]`/`[!IMPORTANT]`/`[!EXPERIENCE]`），由 `WikiCallout` 组件渲染
 - **编辑器**: 分屏模式，左侧 Markdown 源码，右侧实时预览
 
 ### Wiki 前端样式
@@ -133,12 +148,30 @@ make db-migrate     # 数据库迁移
 | 端点 | 说明 |
 |------|------|
 | `GET /api/v1/wiki` | 完整嵌套树 |
-| `GET /api/v1/wiki/page?path=dev/frontend` | 按 slug 路径查找 |
-| `GET /api/v1/wiki/pages/{id}` | 按 ID 查找（含 path + breadcrumbs） |
-| `POST /api/v1/wiki/pages` | 创建页面 |
-| `PUT /api/v1/wiki/pages/{id}` | 更新页面 |
+| `GET /api/v1/wiki/page?path=dev/frontend` | 按 slug 路径查找（含 sections） |
+| `GET /api/v1/wiki/pages/{id}` | 按 ID 查找（含 path + breadcrumbs + sections） |
+| `POST /api/v1/wiki/pages` | 创建页面（支持 sections_enabled） |
+| `PUT /api/v1/wiki/pages/{id}` | 更新页面（sections_enabled 时自动识别知识/经验） |
 | `DELETE /api/v1/wiki/pages/{id}` | 删除页面（级联） |
 | `PUT /api/v1/wiki/pages/{id}/reorder` | 移动/排序 |
+| `GET /api/v1/wiki/pages/{id}/versions` | Wiki 版本历史 |
+| `GET /api/v1/wiki/pages/{id}/versions/{v}` | Wiki 特定版本快照 |
+
+### Knowledge Items API
+
+| 端点 | 说明 |
+|------|------|
+| `GET /api/v1/knowledge-items` | 列表/搜索（?q=, ?tag=） |
+| `POST /api/v1/knowledge-items` | 创建知识项 |
+| `GET /api/v1/knowledge-items/{id}` | 详情（含 wiki_references, experience_ids） |
+| `PUT /api/v1/knowledge-items/{id}` | 更新（内容变化时自动版本化） |
+| `DELETE /api/v1/knowledge-items/{id}` | 删除 |
+| `POST /api/v1/knowledge-relations` | 创建知识关系 |
+| `DELETE /api/v1/knowledge-relations/{id}` | 删除知识关系 |
+| `GET /api/v1/knowledge-items/{id}/relations` | 获取某知识的所有关系 |
+| `GET /api/v1/knowledge-items/{id}/versions` | 知识版本历史 |
+| `GET /api/v1/knowledge-items/{id}/versions/{v}` | 特定版本内容 |
+| `GET /api/v1/experiences/{id}/versions` | 经验版本历史 |
 
 ### 关键约束
 

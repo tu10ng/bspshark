@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::models::experience::Experience;
+use crate::models::knowledge_item::KnowledgeItem;
 use crate::models::knowledge_tree::*;
 
 #[derive(serde::Deserialize)]
@@ -138,10 +139,16 @@ async fn delete_tree(
     Ok(HttpResponse::NoContent().finish())
 }
 
+#[derive(serde::Deserialize)]
+pub struct TreeNodesQuery {
+    pub as_of: Option<String>,
+}
+
 #[get("/api/v1/knowledge-trees/{id}/nodes")]
 async fn get_tree_nodes(
     pool: web::Data<SqlitePool>,
     path: web::Path<String>,
+    query: web::Query<TreeNodesQuery>,
 ) -> Result<HttpResponse, AppError> {
     let tree_id = path.into_inner();
 
@@ -154,7 +161,21 @@ async fn get_tree_nodes(
     .await
     .map_err(|_| AppError::NotFound("Knowledge tree not found".to_string()))?;
 
-    // Fetch all nodes for this tree
+    // Check if this tree has knowledge_tree_roots (new system)
+    let root_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_tree_roots WHERE tree_id = ?1",
+    )
+    .bind(&tree_id)
+    .fetch_one(pool.get_ref())
+    .await?;
+
+    if root_count > 0 {
+        // New system: build tree from knowledge_items + knowledge_relations
+        let nested = build_tree_from_knowledge_items(pool.get_ref(), &tree_id, query.as_of.as_deref()).await?;
+        return Ok(HttpResponse::Ok().json(nested));
+    }
+
+    // Legacy system: build tree from tree_nodes
     let nodes = sqlx::query_as::<_, TreeNode>(
         "SELECT * FROM tree_nodes WHERE tree_id = ?1 ORDER BY sort_order"
     )
@@ -162,7 +183,6 @@ async fn get_tree_nodes(
     .fetch_all(pool.get_ref())
     .await?;
 
-    // Fetch all instance assignments for nodes in this tree
     let instance_assignments: Vec<(String, String)> = sqlx::query_as(
         "SELECT nia.node_id, nia.instance_id FROM node_instance_assignments nia
          JOIN tree_nodes tn ON nia.node_id = tn.id
@@ -173,7 +193,6 @@ async fn get_tree_nodes(
     .await
     .unwrap_or_default();
 
-    // Fetch all experience refs for nodes in this tree
     let experience_refs: Vec<(String, Experience)> = {
         let refs = sqlx::query_as::<_, (String, String)>(
             "SELECT ner.node_id, ner.experience_id FROM node_experience_refs ner
@@ -198,9 +217,139 @@ async fn get_tree_nodes(
         result
     };
 
-    // Build nested tree
     let nested = build_nested_tree(&nodes, &experience_refs, &instance_assignments, None);
     Ok(HttpResponse::Ok().json(nested))
+}
+
+/// Build a tree from the new knowledge_items system.
+/// Returns TreeNodeNested[] (same structure as legacy) for backward compatibility.
+async fn build_tree_from_knowledge_items(
+    pool: &SqlitePool,
+    tree_id: &str,
+    _as_of: Option<&str>,
+) -> Result<Vec<TreeNodeNested>, AppError> {
+    // Get root knowledge items for this tree
+    let roots = sqlx::query_as::<_, (String, i64)>(
+        "SELECT knowledge_item_id, sort_order FROM knowledge_tree_roots
+         WHERE tree_id = ?1 ORDER BY sort_order",
+    )
+    .bind(tree_id)
+    .fetch_all(pool)
+    .await?;
+
+    // Collect all knowledge items reachable from these roots
+    let all_items = sqlx::query_as::<_, KnowledgeItem>(
+        "SELECT * FROM knowledge_items",
+    )
+    .fetch_all(pool)
+    .await?;
+
+    // Get all parent_child relations
+    let relations = sqlx::query_as::<_, (String, String, i64)>(
+        "SELECT source_id, target_id, sort_order FROM knowledge_relations
+         WHERE relation_type = 'parent_child'
+         ORDER BY sort_order",
+    )
+    .fetch_all(pool)
+    .await?;
+
+    // Get all experience refs
+    let exp_refs = sqlx::query_as::<_, (String, String)>(
+        "SELECT knowledge_item_id, experience_id FROM knowledge_experience_refs",
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let all_experiences = sqlx::query_as::<_, Experience>(
+        "SELECT * FROM experiences",
+    )
+    .fetch_all(pool)
+    .await?;
+
+    // Build experience map
+    let exp_map: std::collections::HashMap<String, Experience> = all_experiences
+        .into_iter()
+        .map(|e| (e.id.clone(), e))
+        .collect();
+
+    let item_map: std::collections::HashMap<String, KnowledgeItem> = all_items
+        .into_iter()
+        .map(|i| (i.id.clone(), i))
+        .collect();
+
+    // Build nested tree starting from roots
+    let mut result = Vec::new();
+    for (root_id, root_sort) in &roots {
+        if let Some(item) = item_map.get(root_id) {
+            let nested = build_ki_nested(
+                item,
+                tree_id,
+                *root_sort as i32,
+                &item_map,
+                &relations,
+                &exp_refs,
+                &exp_map,
+            );
+            result.push(nested);
+        }
+    }
+
+    Ok(result)
+}
+
+/// Recursively build TreeNodeNested from a knowledge item and its children.
+fn build_ki_nested(
+    item: &KnowledgeItem,
+    tree_id: &str,
+    sort_order: i32,
+    item_map: &std::collections::HashMap<String, KnowledgeItem>,
+    relations: &[(String, String, i64)],
+    exp_refs: &[(String, String)],
+    exp_map: &std::collections::HashMap<String, Experience>,
+) -> TreeNodeNested {
+    // Find children (relations where this item is source)
+    let mut children: Vec<TreeNodeNested> = relations
+        .iter()
+        .filter(|(src, _, _)| src == &item.id)
+        .filter_map(|(_, target, child_sort)| {
+            item_map.get(target).map(|child_item| {
+                build_ki_nested(
+                    child_item,
+                    tree_id,
+                    *child_sort as i32,
+                    item_map,
+                    relations,
+                    exp_refs,
+                    exp_map,
+                )
+            })
+        })
+        .collect();
+
+    children.sort_by_key(|c| c.node.sort_order);
+
+    // Get experiences for this item
+    let experiences: Vec<Experience> = exp_refs
+        .iter()
+        .filter(|(ki_id, _)| ki_id == &item.id)
+        .filter_map(|(_, eid)| exp_map.get(eid).cloned())
+        .collect();
+
+    TreeNodeNested {
+        node: TreeNode {
+            id: item.id.clone(),
+            tree_id: tree_id.to_string(),
+            parent_id: None, // Not used directly in the new system
+            title: item.title.clone(),
+            description: Some(item.content.clone()),
+            sort_order,
+            created_at: item.created_at.clone(),
+            updated_at: item.updated_at.clone(),
+        },
+        experiences,
+        children,
+        instance_ids: Vec::new(), // Instances not yet migrated
+    }
 }
 
 fn build_nested_tree(

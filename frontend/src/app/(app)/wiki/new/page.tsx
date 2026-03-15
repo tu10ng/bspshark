@@ -13,6 +13,7 @@ export default async function WikiNewPage({
     slug: string;
     content: string;
     parent_id?: string;
+    sections_enabled?: boolean;
   }) {
     "use server";
     await createWikiPage({
@@ -20,6 +21,7 @@ export default async function WikiNewPage({
       slug: data.slug,
       content: data.content,
       parent_id: data.parent_id,
+      sections_enabled: data.sections_enabled,
     });
   }
 

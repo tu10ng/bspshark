@@ -4,6 +4,7 @@ import {
   AlertTriangleIcon,
   AlertOctagonIcon,
   StarIcon,
+  BugIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,13 @@ const calloutConfig = {
     label: "Important",
     titleBg: "bg-[#1abc9c]",
     bodyBg: "bg-[#dbfaf4] dark:bg-emerald-950/30",
+    titleText: "text-white",
+  },
+  EXPERIENCE: {
+    icon: BugIcon,
+    label: "Experience",
+    titleBg: "bg-amber-500",
+    bodyBg: "bg-amber-50 dark:bg-amber-950/30",
     titleText: "text-white",
   },
 } as const;

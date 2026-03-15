@@ -5,6 +5,8 @@ import rehypeHighlight from "rehype-highlight";
 import { ExternalLinkIcon } from "lucide-react";
 import { WikiHeading } from "./wiki-heading";
 import { WikiCallout, type CalloutType } from "./wiki-callout";
+import { rehypeCodeMeta } from "./code-block/rehype-code-meta";
+import { CodeBlock } from "./code-block/code-block";
 
 const CALLOUT_TYPES = new Set<string>(["NOTE", "TIP", "WARNING", "CAUTION", "IMPORTANT"]);
 
@@ -75,8 +77,8 @@ export function WikiMarkdown({ content }: { content: string }) {
     <div className="prose dark:prose-invert wiki-prose max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[[rehypeHighlight, { detect: true }]]}
-        components={components}
+        rehypePlugins={[[rehypeHighlight, { detect: true }], rehypeCodeMeta]}
+        components={{ ...components, pre: CodeBlock }}
       >
         {content}
       </ReactMarkdown>

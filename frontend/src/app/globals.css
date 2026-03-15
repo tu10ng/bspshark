@@ -233,7 +233,7 @@
 .wiki-prose :not(pre) > code {
   color: oklch(0.55 0.2 25);
   background-color: oklch(1 0 0);
-  padding: 0 5px;
+  padding: 2px 5px;
   border: 1px solid oklch(0.90 0 0);
   border-radius: 0;
   font-size: 75%;
@@ -246,9 +246,9 @@
   border-color: oklch(0.35 0 0);
 }
 
-/* 代码块 */
+/* 代码块 — 基础 prose pre 样式 */
 .wiki-prose pre {
-  border: 1px solid oklch(0.90 0 0);
+  border: 1px solid hsl(195, 7%, 89%);
   border-radius: 0;
 }
 .wiki-prose pre code {
@@ -257,6 +257,182 @@
 }
 .dark .wiki-prose pre {
   border-color: oklch(0.30 0 0);
+}
+
+/* === Code Block Component === */
+
+.code-block-wrapper {
+  position: relative;
+  border: 1px solid hsl(195, 7%, 89%);
+  overflow: hidden;
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+}
+.dark .code-block-wrapper {
+  border-color: oklch(0.30 0 0);
+}
+
+/* Remove prose pre border when wrapped by code-block-wrapper */
+.code-block-wrapper pre {
+  border: none;
+  margin: 0;
+  border-radius: 0;
+}
+
+/* Header bar (title or language label) */
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  background-color: oklch(0.93 0 0);
+  border-bottom: 1px solid hsl(195, 7%, 89%);
+  color: oklch(0.40 0 0);
+}
+.dark .code-block-header {
+  background-color: oklch(0.16 0 0);
+  border-bottom-color: oklch(0.30 0 0);
+  color: oklch(0.70 0 0);
+}
+
+.code-block-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Copy button — shared base */
+.code-block-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: oklch(0.50 0 0);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+/* Header variant: no border, hover shows bg */
+.code-block-copy-btn--header { flex-shrink: 0; color: oklch(0.50 0 0); }
+.code-block-copy-btn--header:hover { background-color: oklch(0.88 0 0); color: oklch(0.30 0 0); }
+.dark .code-block-copy-btn--header { color: oklch(0.60 0 0); }
+.dark .code-block-copy-btn--header:hover { background-color: oklch(0.25 0 0); color: oklch(0.85 0 0); }
+
+/* Floating variant: always visible, semi-transparent bg */
+.code-block-copy-float { position: absolute; top: 6px; right: 6px; z-index: 1; }
+.code-block-copy-btn--floating {
+  background-color: oklch(0.96 0 0 / 90%);
+  border: 1px solid oklch(0.88 0 0);
+  padding: 4px 8px;
+}
+.code-block-copy-btn--floating:hover { background-color: oklch(0.92 0 0); color: oklch(0.30 0 0); }
+.dark .code-block-copy-btn--floating {
+  background-color: oklch(0.22 0 0 / 90%);
+  border-color: oklch(0.35 0 0);
+  color: oklch(0.65 0 0);
+}
+.dark .code-block-copy-btn--floating:hover { background-color: oklch(0.30 0 0); color: oklch(0.85 0 0); }
+
+/* Table layout for line numbers / line highlight / diff */
+.code-block-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: none;
+}
+.code-block-table tr {
+  background: transparent !important;
+}
+.code-block-table td {
+  border: none;
+  padding: 0;
+  vertical-align: top;
+}
+
+/* Line numbers */
+.code-line-number {
+  user-select: none;
+  text-align: right;
+  padding-left: 12px;
+  padding-right: 12px;
+  width: 1%;
+  white-space: nowrap;
+  color: oklch(0.65 0 0);
+  opacity: 0.6;
+  font-size: 12px;
+  line-height: 1.4;
+  border-right: 1px solid oklch(0.90 0 0);
+}
+.dark .code-line-number {
+  color: oklch(0.50 0 0);
+  border-right-color: oklch(0.30 0 0);
+}
+
+/* Line content */
+.code-line-content {
+  padding-right: 16px;
+  white-space: pre;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Highlighted lines (warm yellow) */
+.code-line-highlight {
+  background-color: oklch(0.95 0.05 80) !important;
+}
+.code-line-highlight .code-line-number {
+  color: oklch(0.55 0.08 80);
+  opacity: 1;
+}
+.dark .code-line-highlight {
+  background-color: oklch(0.25 0.04 80) !important;
+}
+.dark .code-line-highlight .code-line-number {
+  color: oklch(0.60 0.06 80);
+}
+
+/* Diff: added lines (green) */
+.code-line-diff-add {
+  background-color: oklch(0.95 0.06 145) !important;
+}
+.code-line-diff-add .code-line-number {
+  color: oklch(0.50 0.10 145);
+  opacity: 1;
+}
+.dark .code-line-diff-add {
+  background-color: oklch(0.25 0.05 145) !important;
+}
+.dark .code-line-diff-add .code-line-number {
+  color: oklch(0.55 0.08 145);
+}
+
+/* Diff: removed lines (red) */
+.code-line-diff-del {
+  background-color: oklch(0.95 0.05 25) !important;
+}
+.code-line-diff-del .code-line-number {
+  color: oklch(0.50 0.10 25);
+  opacity: 1;
+}
+.dark .code-line-diff-del {
+  background-color: oklch(0.25 0.04 25) !important;
+}
+.dark .code-line-diff-del .code-line-number {
+  color: oklch(0.55 0.06 25);
+}
+
+/* Print: wrap code, hide copy buttons */
+@media print {
+  .code-block-wrapper pre, .wiki-prose pre { white-space: pre-wrap; word-wrap: break-word; }
+  .code-block-copy-float, .code-block-copy-btn { display: none; }
 }
 
 /* 表格：斑马纹 + 全边框 + 表头背景 */

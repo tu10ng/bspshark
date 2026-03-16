@@ -28,7 +28,7 @@ bspshark/
 ├── .env               # 环境变量（DATABASE_URL, BACKEND_PORT 等）
 ├── frontend/          # Next.js 前端
 │   ├── src/app/       # App Router 页面
-│   │   └── (app)/     # 带侧边栏的路由组 (/, /wiki, /tools, /knowledge, /experiences, /tasks)
+│   │   └── (app)/     # 带侧边栏的路由组 (/, /wiki, /tools, /knowledge, /knowledge-items, /experiences, /tasks)
 │   │       └── wiki/  # Wiki 文档系统（RTD 风格）
 │   │           ├── layout.tsx           # 二级侧边栏布局
 │   │           ├── [[...slug]]/page.tsx # 通配路由（首页 + 页面渲染）
@@ -121,7 +121,7 @@ make db-migrate     # 数据库迁移
 
 - **slug 全局唯一**：用于 URL 和去重
 - **版本号递增**：content 变化时 `current_version` +1
-- **sections_enabled 标志**：Wiki 页面可选择是否启用自动识别
+- **sections_enabled 列保留**：默认值为 1，知识识别对所有页面默认生效
 - **级联删除**：所有关联表 ON DELETE CASCADE（`knowledge_experience_refs` 和 `wiki_page_sections` 中引用用 ON DELETE SET NULL）
 
 ## Wiki 文档系统
@@ -150,8 +150,8 @@ make db-migrate     # 数据库迁移
 | `GET /api/v1/wiki` | 完整嵌套树 |
 | `GET /api/v1/wiki/page?path=dev/frontend` | 按 slug 路径查找（含 sections） |
 | `GET /api/v1/wiki/pages/{id}` | 按 ID 查找（含 path + breadcrumbs + sections） |
-| `POST /api/v1/wiki/pages` | 创建页面（支持 sections_enabled） |
-| `PUT /api/v1/wiki/pages/{id}` | 更新页面（sections_enabled 时自动识别知识/经验） |
+| `POST /api/v1/wiki/pages` | 创建页面（自动识别知识/经验） |
+| `PUT /api/v1/wiki/pages/{id}` | 更新页面（自动识别知识/经验） |
 | `DELETE /api/v1/wiki/pages/{id}` | 删除页面（级联） |
 | `PUT /api/v1/wiki/pages/{id}/reorder` | 移动/排序 |
 | `GET /api/v1/wiki/pages/{id}/versions` | Wiki 版本历史 |
@@ -161,7 +161,7 @@ make db-migrate     # 数据库迁移
 
 | 端点 | 说明 |
 |------|------|
-| `GET /api/v1/knowledge-items` | 列表/搜索（?q=, ?tag=） |
+| `GET /api/v1/knowledge-items` | 列表/搜索（?q=, ?tag=），含 wiki_references |
 | `POST /api/v1/knowledge-items` | 创建知识项 |
 | `GET /api/v1/knowledge-items/{id}` | 详情（含 wiki_references, experience_ids） |
 | `PUT /api/v1/knowledge-items/{id}` | 更新（内容变化时自动版本化） |

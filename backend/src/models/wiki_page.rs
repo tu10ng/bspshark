@@ -46,7 +46,6 @@ pub struct CreateWikiPage {
     pub title: String,
     pub slug: String,
     pub content: Option<String>,
-    pub sections_enabled: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,7 +53,6 @@ pub struct UpdateWikiPage {
     pub title: Option<String>,
     pub slug: Option<String>,
     pub content: Option<String>,
-    pub sections_enabled: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]

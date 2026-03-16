@@ -91,7 +91,7 @@ tools/               # 工具脚本
 
 ### 自动识别流程
 
-Wiki 保存时（`sections_enabled = true`）：
+Wiki 保存时自动执行（所有页面默认启用）：
 1. 解析 Markdown → `ParsedSection[]`
 2. 匹配/创建 knowledge_items（标题精确匹配）
 3. 匹配/创建 experiences（`[!EXPERIENCE]` callout）
@@ -113,11 +113,11 @@ Wiki 保存时（`sections_enabled = true`）：
 ## Wiki 系统
 
 - `wiki_pages` 表：自引用树结构，`parent_id` FK ON DELETE CASCADE
-- `sections_enabled` 标志：启用时保存触发自动识别
+- `sections_enabled` 列保留（默认值 1），知识识别对所有页面默认生效
 - slug 路径寻址：`resolve_path()` 沿 parent_id 向上构建完整路径和面包屑
 - 同级 slug 唯一性：`UNIQUE(COALESCE(parent_id, ''), slug)`
 - 保留 slug：`edit`、`new` 不可用（与前端路由冲突）
-- GET 端点返回 `sections[]`（sections_enabled 时），含解析后的知识/经验实体
+- GET 端点始终返回 `sections[]`，含解析后的知识/经验实体
 
 ## 测试
 

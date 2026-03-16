@@ -10,7 +10,7 @@ Wiki 文档系统的前端渲染和编辑组件。
 - `wiki-nav.tsx` — 递归导航组件（拖拽排序 + 上下文菜单）
 - `wiki-page-content.tsx` — 页面内容渲染（支持 sections 模式和纯 Markdown 模式）
 - `wiki-markdown.tsx` — Markdown 渲染（react-markdown + remark-gfm + rehype-highlight + callouts）
-- `wiki-editor.tsx` — 分屏编辑器（Markdown textarea + 实时预览 + 知识识别开关）
+- `wiki-editor.tsx` — 分屏编辑器（Markdown textarea + 实时预览）
 - `wiki-callout.tsx` — GitHub Alerts + EXPERIENCE callout 渲染
 - `wiki-experience-inline.tsx` — 经验内联渲染（severity 颜色 + status 徽章）
 - `wiki-version-history.tsx` — Wiki 修订历史面板
@@ -27,8 +27,7 @@ Wiki 文档系统的前端渲染和编辑组件。
 ## 约定
 
 - Callout 类型：NOTE, TIP, WARNING, CAUTION, IMPORTANT, EXPERIENCE
-- sections_enabled 页面按 section 逐个渲染（知识带蓝色左边框，经验带 severity 颜色边框）
-- 编辑器的 `知识识别` 复选框控制 sections_enabled
+- 知识识别默认对所有 Wiki 页面生效，按 section 逐个渲染（知识带蓝色左边框，经验带 severity 颜色边框）
 
 ## 依赖关系
 

@@ -164,11 +164,7 @@ async fn get_wiki_page_by_path(
     let page = current_page.unwrap();
     let (path, breadcrumbs) = resolve_path(pool.get_ref(), &page.id).await?;
 
-    let sections = if page.sections_enabled != 0 {
-        Some(wiki_compose::load_sections(pool.get_ref(), &page.id).await?)
-    } else {
-        None
-    };
+    let sections = Some(wiki_compose::load_sections(pool.get_ref(), &page.id).await?);
 
     Ok(HttpResponse::Ok().json(WikiPageWithPath {
         page,
@@ -194,11 +190,7 @@ async fn get_wiki_page_by_id(
 
     let (url_path, breadcrumbs) = resolve_path(pool.get_ref(), &page.id).await?;
 
-    let sections = if page.sections_enabled != 0 {
-        Some(wiki_compose::load_sections(pool.get_ref(), &page.id).await?)
-    } else {
-        None
-    };
+    let sections = Some(wiki_compose::load_sections(pool.get_ref(), &page.id).await?);
 
     Ok(HttpResponse::Ok().json(WikiPageWithPath {
         page,
@@ -246,7 +238,6 @@ async fn create_wiki_page(
     }
 
     let id = Uuid::new_v4().to_string();
-    let sections_enabled = if body.sections_enabled.unwrap_or(false) { 1 } else { 0 };
     let content = body.content.as_deref().unwrap_or("");
 
     // Auto sort_order = max + 1
@@ -261,7 +252,7 @@ async fn create_wiki_page(
 
     sqlx::query(
         "INSERT INTO wiki_pages (id, parent_id, title, slug, content, sort_order, sections_enabled)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1)",
     )
     .bind(&id)
     .bind(&body.parent_id)
@@ -269,22 +260,18 @@ async fn create_wiki_page(
     .bind(&body.slug)
     .bind(content)
     .bind(sort_order)
-    .bind(sections_enabled)
     .execute(pool.get_ref())
     .await?;
 
-    // If sections enabled and content is not empty, run auto-identify
-    if sections_enabled != 0 && !content.is_empty() {
+    // Run auto-identify if content is not empty
+    if !content.is_empty() {
         let result = auto_identify::identify_and_create(pool.get_ref(), &id, content).await?;
         wiki_compose::save_sections(pool.get_ref(), &id, &result.sections).await?;
     }
 
     // Create initial wiki page version
-    let sections_snapshot = if sections_enabled != 0 {
-        Some(wiki_compose::create_sections_snapshot(pool.get_ref(), &id).await?)
-    } else {
-        None
-    };
+    let sections_snapshot =
+        Some(wiki_compose::create_sections_snapshot(pool.get_ref(), &id).await?);
     versioning::create_wiki_page_version(
         pool.get_ref(),
         &id,
@@ -343,31 +330,21 @@ async fn update_wiki_page(
         }
     }
 
-    // Handle sections_enabled toggle
-    let sections_enabled = match body.sections_enabled {
-        Some(true) => 1,
-        Some(false) => 0,
-        None => existing.sections_enabled,
-    };
-
     sqlx::query(
-        "UPDATE wiki_pages SET title = ?1, slug = ?2, content = ?3, sections_enabled = ?4,
-         updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?5",
+        "UPDATE wiki_pages SET title = ?1, slug = ?2, content = ?3,
+         updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?4",
     )
     .bind(title)
     .bind(slug)
     .bind(content)
-    .bind(sections_enabled)
     .bind(&id)
     .execute(pool.get_ref())
     .await?;
 
-    // If sections enabled, run auto-identify
-    if sections_enabled != 0 {
-        let result =
-            auto_identify::identify_and_create(pool.get_ref(), &id, content).await?;
-        wiki_compose::save_sections(pool.get_ref(), &id, &result.sections).await?;
-    }
+    // Always run auto-identify
+    let result =
+        auto_identify::identify_and_create(pool.get_ref(), &id, content).await?;
+    wiki_compose::save_sections(pool.get_ref(), &id, &result.sections).await?;
 
     // Create new wiki page version
     let current_version: i64 = sqlx::query_scalar(
@@ -378,11 +355,8 @@ async fn update_wiki_page(
     .await
     .map_err(AppError::from)?;
 
-    let sections_snapshot = if sections_enabled != 0 {
-        Some(wiki_compose::create_sections_snapshot(pool.get_ref(), &id).await?)
-    } else {
-        None
-    };
+    let sections_snapshot =
+        Some(wiki_compose::create_sections_snapshot(pool.get_ref(), &id).await?);
 
     versioning::create_wiki_page_version(
         pool.get_ref(),

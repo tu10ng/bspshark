@@ -61,7 +61,7 @@ export function WikiPageContent({
   page: WikiPageWithPath;
   tree: WikiPageNested[];
 }) {
-  const hasSections = page.sections_enabled !== 0 && page.sections && page.sections.length > 0;
+  const hasSections = page.sections && page.sections.length > 0;
 
   return (
     <div className="mx-auto max-w-[800px]">

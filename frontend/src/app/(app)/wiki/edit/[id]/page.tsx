@@ -20,7 +20,6 @@ export default async function WikiEditPage({
     title: string;
     slug: string;
     content: string;
-    sections_enabled?: boolean;
   }) {
     "use server";
     await updateWikiPage(id, data);
@@ -34,7 +33,6 @@ export default async function WikiEditPage({
         title: page.title,
         slug: page.slug,
         content: page.content,
-        sections_enabled: page.sections_enabled,
       }}
       parentId={page.parent_id ?? undefined}
       onSave={handleSave}

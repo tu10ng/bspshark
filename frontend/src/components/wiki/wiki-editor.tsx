@@ -15,7 +15,6 @@ interface WikiEditorProps {
     title: string;
     slug: string;
     content: string;
-    sections_enabled?: number;
   };
   parentId?: string;
   onSave: (data: {
@@ -23,7 +22,6 @@ interface WikiEditorProps {
     slug: string;
     content: string;
     parent_id?: string;
-    sections_enabled?: boolean;
   }) => Promise<void>;
 }
 
@@ -43,9 +41,6 @@ export function WikiEditor({
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [slug, setSlug] = useState(initialData?.slug ?? "");
   const [content, setContent] = useState(initialData?.content ?? "");
-  const [sectionsEnabled, setSectionsEnabled] = useState(
-    initialData?.sections_enabled ? initialData.sections_enabled !== 0 : false
-  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(0);
@@ -64,7 +59,6 @@ export function WikiEditor({
         slug: slug.trim(),
         content,
         parent_id: parentId,
-        sections_enabled: sectionsEnabled,
       });
       router.back();
     } catch (e) {
@@ -243,15 +237,6 @@ export function WikiEditor({
             placeholder="url-slug"
           />
         </div>
-        <label className="flex cursor-pointer items-center gap-2 pb-1.5">
-          <input
-            type="checkbox"
-            checked={sectionsEnabled}
-            onChange={(e) => setSectionsEnabled(e.target.checked)}
-            className="size-4 rounded border-border"
-          />
-          <span className="text-sm">知识识别</span>
-        </label>
       </div>
 
       {/* Split editor */}

@@ -32,7 +32,7 @@ src/
 │   ├── layout/             # 布局组件（sidebar, header, nav, theme-toggle）
 │   ├── dashboard/          # Dashboard 组件（stats-cards, quick-tools）
 │   ├── wiki/               # Wiki 组件（wiki-sidebar, wiki-nav, wiki-editor, wiki-markdown, wiki-heading, wiki-callout, wiki-experience-inline, wiki-breadcrumbs, wiki-prev-next, wiki-landing, wiki-page-content, wiki-version-history）
-│   ├── knowledge/          # 知识组件（tree-flow, node-form, knowledge-version-timeline 等）
+│   ├── knowledge/          # 知识组件（tree-flow, node-form, knowledge-version-timeline, knowledge-items-list 等）
 │   └── tools/              # Tools 组件（language-tabs, tool-card, tool-catalog, tool-executor, tool-output）
 ├── lib/
 │   ├── utils.ts            # cn() 类名合并

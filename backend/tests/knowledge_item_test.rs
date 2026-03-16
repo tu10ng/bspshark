@@ -157,13 +157,12 @@ async fn knowledge_relations() {
 async fn wiki_auto_identify_sections() {
     let (app, _pool) = common::spawn_test_app().await;
 
-    // Create a wiki page with sections_enabled and markdown containing H2 + experience
+    // Create a wiki page with markdown containing H2 + experience (auto-identify always runs)
     let req = test::TestRequest::post()
         .uri("/api/v1/wiki/pages")
         .set_json(json!({
             "title": "Storage Guide",
             "slug": "storage-guide",
-            "sections_enabled": true,
             "content": "Intro text.\n\n## SATA 控制器\n\nSATA controller info.\n\n> [!EXPERIENCE] AHCI Bug\n> Need to switch to AHCI in BIOS.\n\n## 文件系统\n\next4 is good."
         }))
         .to_request();
@@ -171,7 +170,6 @@ async fn wiki_auto_identify_sections() {
     assert_eq!(resp.status(), 201);
     let page: Value = test::read_body_json(resp).await;
     let page_id = page["id"].as_str().unwrap();
-    assert_eq!(page["sections_enabled"], 1);
 
     // Fetch page by ID — should include sections
     let req = test::TestRequest::get()

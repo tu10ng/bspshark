@@ -196,12 +196,12 @@ pub async fn get_knowledge_item_with_refs(
     })
 }
 
-/// List knowledge items with optional search.
+/// List knowledge items with optional search, including wiki references.
 pub async fn list_knowledge_items(
     pool: &SqlitePool,
     q: Option<&str>,
     tag: Option<&str>,
-) -> Result<Vec<KnowledgeItem>, AppError> {
+) -> Result<Vec<KnowledgeItemWithRefs>, AppError> {
     let mut query = String::from("SELECT * FROM knowledge_items WHERE 1=1");
     let mut bindings: Vec<String> = Vec::new();
 
@@ -229,7 +229,38 @@ pub async fn list_knowledge_items(
         q = q.bind(b);
     }
 
-    q.fetch_all(pool).await.map_err(AppError::from)
+    let items: Vec<KnowledgeItem> = q.fetch_all(pool).await.map_err(AppError::from)?;
+
+    let mut results = Vec::with_capacity(items.len());
+    for item in items {
+        let wiki_refs = sqlx::query_as::<_, WikiReference>(
+            "SELECT wp.id AS wiki_page_id, wp.title AS wiki_page_title, wp.slug AS wiki_page_slug
+             FROM wiki_page_sections wps
+             JOIN wiki_pages wp ON wp.id = wps.wiki_page_id
+             WHERE wps.knowledge_item_id = ?
+             GROUP BY wp.id",
+        )
+        .bind(&item.id)
+        .fetch_all(pool)
+        .await
+        .map_err(AppError::from)?;
+
+        let experience_ids: Vec<String> = sqlx::query_scalar(
+            "SELECT experience_id FROM knowledge_experience_refs WHERE knowledge_item_id = ?",
+        )
+        .bind(&item.id)
+        .fetch_all(pool)
+        .await
+        .map_err(AppError::from)?;
+
+        results.push(KnowledgeItemWithRefs {
+            item,
+            wiki_references: wiki_refs,
+            experience_ids,
+        });
+    }
+
+    Ok(results)
 }
 
 /// Update a knowledge item. Returns the updated item.

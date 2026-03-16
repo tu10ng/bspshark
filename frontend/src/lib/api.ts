@@ -71,7 +71,6 @@ export function createWikiPage(data: {
   title: string;
   slug: string;
   content?: string;
-  sections_enabled?: boolean;
 }): Promise<WikiPage> {
   return fetchApi("/api/v1/wiki/pages", {
     method: "POST",
@@ -81,7 +80,7 @@ export function createWikiPage(data: {
 
 export function updateWikiPage(
   id: string,
-  data: { title?: string; slug?: string; content?: string; sections_enabled?: boolean }
+  data: { title?: string; slug?: string; content?: string }
 ): Promise<WikiPage> {
   return fetchApi(`/api/v1/wiki/pages/${id}`, {
     method: "PUT",
@@ -466,7 +465,7 @@ export function getTaskExperiences(taskId: string): Promise<Experience[]> {
 export function getKnowledgeItems(params?: {
   q?: string;
   tag?: string;
-}): Promise<KnowledgeItem[]> {
+}): Promise<KnowledgeItemWithRefs[]> {
   const searchParams = new URLSearchParams();
   if (params?.q) searchParams.set("q", params.q);
   if (params?.tag) searchParams.set("tag", params.tag);

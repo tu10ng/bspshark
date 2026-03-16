@@ -17,6 +17,7 @@
 - `node-experience-manager.tsx` — 节点-经验关联管理
 - `instance-manager.tsx` — 并行知识实例管理
 - `knowledge-version-timeline.tsx` — 知识版本时间线组件
+- `knowledge-items-list.tsx` — 知识项列表页组件（搜索 + 卡片列表 + 详情 Sheet）
 
 ## 数据源
 

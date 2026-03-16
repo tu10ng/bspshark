@@ -16,6 +16,38 @@ pub struct WikiPageSectionRow {
     pub sort_order: i64,
 }
 
+/// Flattened row from JOIN query (sections + knowledge_items + experiences)
+#[derive(Debug, Clone, FromRow)]
+pub struct WikiPageSectionJoinRow {
+    // wiki_page_sections fields
+    pub id: String,
+    pub section_type: String,
+    pub knowledge_item_id: Option<String>,
+    pub experience_id: Option<String>,
+    pub freeform_content: Option<String>,
+    pub sort_order: i64,
+    // knowledge_items fields (prefixed with ki_)
+    pub ki_id: Option<String>,
+    pub ki_title: Option<String>,
+    pub ki_content: Option<String>,
+    pub ki_slug: Option<String>,
+    pub ki_tags: Option<String>,
+    pub ki_current_version: Option<i64>,
+    pub ki_created_at: Option<String>,
+    pub ki_updated_at: Option<String>,
+    // experiences fields (prefixed with exp_)
+    pub exp_id: Option<String>,
+    pub exp_title: Option<String>,
+    pub exp_description: Option<String>,
+    pub exp_severity: Option<String>,
+    pub exp_status: Option<String>,
+    pub exp_resolution_notes: Option<String>,
+    pub exp_tags: Option<String>,
+    pub exp_content: Option<String>,
+    pub exp_created_at: Option<String>,
+    pub exp_updated_at: Option<String>,
+}
+
 /// Section with resolved entities for API responses
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WikiPageSection {

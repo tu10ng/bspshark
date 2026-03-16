@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -9,7 +9,7 @@ use crate::models::wiki_page_section::{ExperienceVersion, WikiPageVersion};
 
 /// Create a version snapshot for a knowledge item.
 pub async fn create_knowledge_version(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     knowledge_item_id: &str,
     version: i64,
     title: &str,
@@ -28,7 +28,7 @@ pub async fn create_knowledge_version(
     .bind(title)
     .bind(content)
     .bind(source_wiki_page_id)
-    .execute(pool)
+    .execute(&mut *conn)
     .await
     .map_err(AppError::from)?;
 
@@ -36,7 +36,7 @@ pub async fn create_knowledge_version(
         "SELECT * FROM knowledge_item_versions WHERE id = ?",
     )
     .bind(&id)
-    .fetch_one(pool)
+    .fetch_one(&mut *conn)
     .await
     .map_err(AppError::from)
 }
@@ -108,7 +108,7 @@ pub async fn get_knowledge_at(
 
 /// Create a version snapshot for an experience.
 pub async fn create_experience_version(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     experience_id: &str,
     version: i64,
     title: &str,
@@ -136,7 +136,7 @@ pub async fn create_experience_version(
     .bind(status)
     .bind(resolution_notes)
     .bind(source_wiki_page_id)
-    .execute(pool)
+    .execute(&mut *conn)
     .await
     .map_err(AppError::from)?;
 
@@ -144,7 +144,7 @@ pub async fn create_experience_version(
         "SELECT * FROM experience_versions WHERE id = ?",
     )
     .bind(&id)
-    .fetch_one(pool)
+    .fetch_one(&mut *conn)
     .await
     .map_err(AppError::from)
 }
@@ -169,7 +169,7 @@ pub async fn get_experience_versions(
 
 /// Create a version snapshot for a wiki page.
 pub async fn create_wiki_page_version(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     wiki_page_id: &str,
     version: i64,
     title: &str,
@@ -188,7 +188,7 @@ pub async fn create_wiki_page_version(
     .bind(title)
     .bind(content)
     .bind(sections_snapshot)
-    .execute(pool)
+    .execute(&mut *conn)
     .await
     .map_err(AppError::from)?;
 
@@ -196,7 +196,7 @@ pub async fn create_wiki_page_version(
         "SELECT * FROM wiki_page_versions WHERE id = ?",
     )
     .bind(&id)
-    .fetch_one(pool)
+    .fetch_one(&mut *conn)
     .await
     .map_err(AppError::from)
 }

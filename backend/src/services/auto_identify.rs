@@ -1,8 +1,8 @@
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 use crate::error::AppError;
 use crate::models::knowledge_item::KnowledgeItem;
-use crate::services::{knowledge, versioning};
+use crate::services::{experience, knowledge};
 
 /// Represents a parsed section from Markdown content.
 #[derive(Debug, Clone, PartialEq)]
@@ -207,8 +207,9 @@ pub enum IdentifiedSection {
 }
 
 /// Process raw markdown: parse, match/create entities, return structured sections.
+/// Also cleans up stale knowledge-experience refs for knowledge items in this wiki page.
 pub async fn identify_and_create(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     wiki_page_id: &str,
     markdown: &str,
 ) -> Result<IdentifyResult, AppError> {
@@ -218,6 +219,10 @@ pub async fn identify_and_create(
     let mut knowledge_items: Vec<KnowledgeItem> = Vec::new();
     let mut experience_count: usize = 0;
     let mut sort_order: i64 = 0;
+    // Track (knowledge_item_id, experience_id) pairs created in this run
+    let mut current_ke_pairs: Vec<(String, String)> = Vec::new();
+    // Track all knowledge item IDs in this wiki page
+    let mut page_ki_ids: Vec<String> = Vec::new();
 
     for parsed_section in &parsed {
         match parsed_section {
@@ -234,9 +239,10 @@ pub async fn identify_and_create(
                 experiences,
             } => {
                 // Match or create knowledge item
-                let ki = match_or_create_knowledge(pool, title, content, wiki_page_id).await?;
+                let ki = match_or_create_knowledge(&mut *conn, title, content, wiki_page_id).await?;
                 let ki_id = ki.id.clone();
                 knowledge_items.push(ki);
+                page_ki_ids.push(ki_id.clone());
 
                 sections.push(IdentifiedSection::Knowledge {
                     knowledge_item_id: ki_id.clone(),
@@ -247,11 +253,12 @@ pub async fn identify_and_create(
                 // Process embedded experiences
                 for exp in experiences {
                     let exp_id =
-                        match_or_create_experience(pool, &exp.title, &exp.content, wiki_page_id)
+                        match_or_create_experience(&mut *conn, &exp.title, &exp.content, wiki_page_id)
                             .await?;
 
                     // Link experience to knowledge item
-                    knowledge::link_experience(pool, &ki_id, &exp_id).await?;
+                    knowledge::link_experience(&mut *conn, &ki_id, &exp_id).await?;
+                    current_ke_pairs.push((ki_id.clone(), exp_id.clone()));
 
                     sections.push(IdentifiedSection::Experience {
                         experience_id: exp_id,
@@ -263,7 +270,7 @@ pub async fn identify_and_create(
             }
             ParsedSection::Experience(exp) => {
                 let exp_id =
-                    match_or_create_experience(pool, &exp.title, &exp.content, wiki_page_id)
+                    match_or_create_experience(&mut *conn, &exp.title, &exp.content, wiki_page_id)
                         .await?;
 
                 sections.push(IdentifiedSection::Experience {
@@ -272,6 +279,54 @@ pub async fn identify_and_create(
                 });
                 sort_order += 1;
                 experience_count += 1;
+            }
+        }
+    }
+
+    // Clean up stale knowledge-experience refs for knowledge items in this wiki page.
+    // For each knowledge item referenced by this page, remove refs that are no longer
+    // present in the current parse results.
+    for ki_id in &page_ki_ids {
+        let existing_refs: Vec<String> = sqlx::query_scalar(
+            "SELECT experience_id FROM knowledge_experience_refs WHERE knowledge_item_id = ?",
+        )
+        .bind(ki_id)
+        .fetch_all(&mut *conn)
+        .await
+        .map_err(AppError::from)?;
+
+        for exp_id in &existing_refs {
+            let still_linked = current_ke_pairs
+                .iter()
+                .any(|(k, e)| k == ki_id && e == exp_id);
+            if !still_linked {
+                // Check if this experience is linked to this knowledge item from another wiki page
+                let other_page_count: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM wiki_page_sections
+                     WHERE experience_id = ? AND wiki_page_id != ?
+                     AND wiki_page_id IN (
+                         SELECT wiki_page_id FROM wiki_page_sections WHERE knowledge_item_id = ?
+                     )",
+                )
+                .bind(exp_id)
+                .bind(wiki_page_id)
+                .bind(ki_id)
+                .fetch_one(&mut *conn)
+                .await
+                .map_err(AppError::from)?;
+
+                // Only remove if no other wiki page links this experience under this knowledge item
+                if other_page_count == 0 {
+                    sqlx::query(
+                        "DELETE FROM knowledge_experience_refs
+                         WHERE knowledge_item_id = ? AND experience_id = ?",
+                    )
+                    .bind(ki_id)
+                    .bind(exp_id)
+                    .execute(&mut *conn)
+                    .await
+                    .map_err(AppError::from)?;
+                }
             }
         }
     }
@@ -286,16 +341,16 @@ pub async fn identify_and_create(
 /// Match an existing knowledge item by title, or create a new one.
 /// If matched and content changed, updates and creates a new version.
 async fn match_or_create_knowledge(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     title: &str,
     content: &str,
     wiki_page_id: &str,
 ) -> Result<KnowledgeItem, AppError> {
-    if let Some(existing) = knowledge::find_by_title(pool, title).await? {
+    if let Some(existing) = knowledge::find_by_title(&mut *conn, title).await? {
         // Check if content changed
         if existing.content != content || existing.title != title {
             knowledge::update_knowledge_item(
-                pool,
+                &mut *conn,
                 &existing.id,
                 Some(title),
                 Some(content),
@@ -308,7 +363,7 @@ async fn match_or_create_knowledge(
             Ok(existing)
         }
     } else {
-        knowledge::create_knowledge_item(pool, title, content, None, &[], Some(wiki_page_id))
+        knowledge::create_knowledge_item(&mut *conn, title, content, None, &[], Some(wiki_page_id))
             .await
     }
 }
@@ -316,94 +371,17 @@ async fn match_or_create_knowledge(
 /// Match an existing experience by title, or create a new one.
 /// Returns the experience ID.
 async fn match_or_create_experience(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     title: &str,
     content: &str,
     wiki_page_id: &str,
 ) -> Result<String, AppError> {
-    // Check for existing experience by title (case-insensitive)
-    let existing = sqlx::query_as::<_, crate::models::experience::Experience>(
-        "SELECT * FROM experiences WHERE LOWER(title) = LOWER(?)",
-    )
-    .bind(title)
-    .fetch_optional(pool)
-    .await
-    .map_err(AppError::from)?;
-
-    if let Some(exp) = existing {
-        // Update content if it changed
-        let current_content = exp.description.as_deref().unwrap_or("");
-        if current_content != content {
-            // Get current version number
-            let current_version: i64 = sqlx::query_scalar(
-                "SELECT COALESCE(MAX(version), 0) FROM experience_versions WHERE experience_id = ?",
-            )
-            .bind(&exp.id)
-            .fetch_one(pool)
-            .await
-            .map_err(AppError::from)?;
-
-            let new_version = current_version + 1;
-
-            sqlx::query(
-                "UPDATE experiences SET description = ?, content = ?,
-                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?",
-            )
-            .bind(content)
-            .bind(content)
-            .bind(&exp.id)
-            .execute(pool)
-            .await
-            .map_err(AppError::from)?;
-
-            versioning::create_experience_version(
-                pool,
-                &exp.id,
-                new_version,
-                &exp.title,
-                Some(content),
-                Some(content),
-                &exp.severity,
-                &exp.status,
-                exp.resolution_notes.as_deref(),
-                Some(wiki_page_id),
-            )
+    if let Some(exp) = experience::find_by_title(&mut *conn, title).await? {
+        experience::update_experience_content(&mut *conn, &exp, content, Some(wiki_page_id))
             .await?;
-        }
-
         Ok(exp.id)
     } else {
-        // Create new experience
-        let id = uuid::Uuid::new_v4().to_string();
-
-        sqlx::query(
-            "INSERT INTO experiences (id, title, description, content)
-             VALUES (?, ?, ?, ?)",
-        )
-        .bind(&id)
-        .bind(title)
-        .bind(content)
-        .bind(content)
-        .execute(pool)
-        .await
-        .map_err(AppError::from)?;
-
-        // Create initial version
-        versioning::create_experience_version(
-            pool,
-            &id,
-            1,
-            title,
-            Some(content),
-            Some(content),
-            "medium",
-            "active",
-            None,
-            Some(wiki_page_id),
-        )
-        .await?;
-
-        Ok(id)
+        experience::create_experience(&mut *conn, title, content, Some(wiki_page_id)).await
     }
 }
 

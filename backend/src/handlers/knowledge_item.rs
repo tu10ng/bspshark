@@ -32,8 +32,12 @@ pub async fn create_knowledge_item(
 ) -> Result<HttpResponse, AppError> {
     let tags = body.tags.as_deref().unwrap_or(&[]);
 
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     let item = knowledge::create_knowledge_item(
-        pool.get_ref(),
+        &mut conn,
         &body.title,
         body.content.as_deref().unwrap_or(""),
         body.slug.as_deref(),
@@ -51,7 +55,11 @@ pub async fn get_knowledge_item(
     path: web::Path<String>,
 ) -> Result<HttpResponse, AppError> {
     let id = path.into_inner();
-    let item = knowledge::get_knowledge_item_with_refs(pool.get_ref(), &id).await?;
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let item = knowledge::get_knowledge_item_with_refs(&mut conn, &id).await?;
     Ok(HttpResponse::Ok().json(item))
 }
 
@@ -64,8 +72,12 @@ pub async fn update_knowledge_item(
     let id = path.into_inner();
     let tags_owned: Option<Vec<String>> = body.tags.clone();
 
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     let item = knowledge::update_knowledge_item(
-        pool.get_ref(),
+        &mut conn,
         &id,
         body.title.as_deref(),
         body.content.as_deref(),
@@ -95,8 +107,12 @@ pub async fn create_knowledge_relation(
     pool: web::Data<SqlitePool>,
     body: web::Json<CreateKnowledgeRelation>,
 ) -> Result<HttpResponse, AppError> {
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     let relation = knowledge::create_relation(
-        pool.get_ref(),
+        &mut conn,
         &body.source_id,
         &body.target_id,
         &body.relation_type,
@@ -124,7 +140,12 @@ pub async fn get_knowledge_item_relations(
 ) -> Result<HttpResponse, AppError> {
     let id = path.into_inner();
     // Verify item exists
-    knowledge::get_knowledge_item(pool.get_ref(), &id).await?;
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    knowledge::get_knowledge_item(&mut conn, &id).await?;
+    drop(conn);
     let relations = knowledge::get_relations(pool.get_ref(), &id).await?;
     Ok(HttpResponse::Ok().json(relations))
 }
@@ -138,7 +159,12 @@ pub async fn list_knowledge_item_versions(
 ) -> Result<HttpResponse, AppError> {
     let id = path.into_inner();
     // Verify item exists
-    knowledge::get_knowledge_item(pool.get_ref(), &id).await?;
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    knowledge::get_knowledge_item(&mut conn, &id).await?;
+    drop(conn);
     let versions = versioning::get_knowledge_versions(pool.get_ref(), &id).await?;
     Ok(HttpResponse::Ok().json(versions))
 }

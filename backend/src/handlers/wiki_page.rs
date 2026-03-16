@@ -164,7 +164,11 @@ async fn get_wiki_page_by_path(
     let page = current_page.unwrap();
     let (path, breadcrumbs) = resolve_path(pool.get_ref(), &page.id).await?;
 
-    let sections = Some(wiki_compose::load_sections(pool.get_ref(), &page.id).await?);
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let sections = Some(wiki_compose::load_sections(&mut conn, &page.id).await?);
 
     Ok(HttpResponse::Ok().json(WikiPageWithPath {
         page,
@@ -190,7 +194,11 @@ async fn get_wiki_page_by_id(
 
     let (url_path, breadcrumbs) = resolve_path(pool.get_ref(), &page.id).await?;
 
-    let sections = Some(wiki_compose::load_sections(pool.get_ref(), &page.id).await?);
+    let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let sections = Some(wiki_compose::load_sections(&mut conn, &page.id).await?);
 
     Ok(HttpResponse::Ok().json(WikiPageWithPath {
         page,
@@ -208,11 +216,16 @@ async fn create_wiki_page(
 ) -> Result<HttpResponse, AppError> {
     validate_slug(&body.slug)?;
 
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
     // Verify parent exists if specified
     if let Some(parent_id) = &body.parent_id {
         sqlx::query("SELECT id FROM wiki_pages WHERE id = ?1")
             .bind(parent_id)
-            .fetch_one(pool.get_ref())
+            .fetch_one(&mut *tx)
             .await
             .map_err(|_| AppError::NotFound("Parent page not found".to_string()))?;
     }
@@ -227,7 +240,7 @@ async fn create_wiki_page(
             .unwrap_or(""),
     )
     .bind(&body.slug)
-    .fetch_one(pool.get_ref())
+    .fetch_one(&mut *tx)
     .await?;
 
     if existing > 0 {
@@ -245,7 +258,7 @@ async fn create_wiki_page(
         "SELECT MAX(sort_order) FROM wiki_pages WHERE parent_id IS ?1",
     )
     .bind(&body.parent_id)
-    .fetch_one(pool.get_ref())
+    .fetch_one(&mut *tx)
     .await?;
 
     let sort_order = max_sort.unwrap_or(-1) + 1;
@@ -260,20 +273,20 @@ async fn create_wiki_page(
     .bind(&body.slug)
     .bind(content)
     .bind(sort_order)
-    .execute(pool.get_ref())
+    .execute(&mut *tx)
     .await?;
 
     // Run auto-identify if content is not empty
     if !content.is_empty() {
-        let result = auto_identify::identify_and_create(pool.get_ref(), &id, content).await?;
-        wiki_compose::save_sections(pool.get_ref(), &id, &result.sections).await?;
+        let result = auto_identify::identify_and_create(&mut *tx, &id, content).await?;
+        wiki_compose::save_sections(&mut *tx, &id, &result.sections).await?;
     }
 
     // Create initial wiki page version
     let sections_snapshot =
-        Some(wiki_compose::create_sections_snapshot(pool.get_ref(), &id).await?);
+        Some(wiki_compose::create_sections_snapshot(&mut *tx, &id).await?);
     versioning::create_wiki_page_version(
-        pool.get_ref(),
+        &mut *tx,
         &id,
         1,
         &body.title,
@@ -284,8 +297,12 @@ async fn create_wiki_page(
 
     let page = sqlx::query_as::<_, WikiPage>("SELECT * FROM wiki_pages WHERE id = ?1")
         .bind(&id)
-        .fetch_one(pool.get_ref())
+        .fetch_one(&mut *tx)
         .await?;
+
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(HttpResponse::Created().json(page))
 }
@@ -299,9 +316,14 @@ async fn update_wiki_page(
 ) -> Result<HttpResponse, AppError> {
     let id = path.into_inner();
 
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
     let existing = sqlx::query_as::<_, WikiPage>("SELECT * FROM wiki_pages WHERE id = ?1")
         .bind(&id)
-        .fetch_one(pool.get_ref())
+        .fetch_one(&mut *tx)
         .await
         .map_err(|_| AppError::NotFound("Wiki page not found".to_string()))?;
 
@@ -319,7 +341,7 @@ async fn update_wiki_page(
         .bind(existing.parent_id.as_deref().unwrap_or(""))
         .bind(slug)
         .bind(&id)
-        .fetch_one(pool.get_ref())
+        .fetch_one(&mut *tx)
         .await?;
 
         if count > 0 {
@@ -330,6 +352,8 @@ async fn update_wiki_page(
         }
     }
 
+    let content_changed = title != existing.title || content != existing.content;
+
     sqlx::query(
         "UPDATE wiki_pages SET title = ?1, slug = ?2, content = ?3,
          updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?4",
@@ -338,40 +362,45 @@ async fn update_wiki_page(
     .bind(slug)
     .bind(content)
     .bind(&id)
-    .execute(pool.get_ref())
+    .execute(&mut *tx)
     .await?;
 
-    // Always run auto-identify
-    let result =
-        auto_identify::identify_and_create(pool.get_ref(), &id, content).await?;
-    wiki_compose::save_sections(pool.get_ref(), &id, &result.sections).await?;
+    // Only run auto-identify and create new version when content actually changed
+    if content_changed {
+        let result =
+            auto_identify::identify_and_create(&mut *tx, &id, content).await?;
+        wiki_compose::save_sections(&mut *tx, &id, &result.sections).await?;
 
-    // Create new wiki page version
-    let current_version: i64 = sqlx::query_scalar(
-        "SELECT COALESCE(MAX(version), 0) FROM wiki_page_versions WHERE wiki_page_id = ?",
-    )
-    .bind(&id)
-    .fetch_one(pool.get_ref())
-    .await
-    .map_err(AppError::from)?;
+        let current_version: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(version), 0) FROM wiki_page_versions WHERE wiki_page_id = ?",
+        )
+        .bind(&id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(AppError::from)?;
 
-    let sections_snapshot =
-        Some(wiki_compose::create_sections_snapshot(pool.get_ref(), &id).await?);
+        let sections_snapshot =
+            Some(wiki_compose::create_sections_snapshot(&mut *tx, &id).await?);
 
-    versioning::create_wiki_page_version(
-        pool.get_ref(),
-        &id,
-        current_version + 1,
-        title,
-        content,
-        sections_snapshot.as_deref(),
-    )
-    .await?;
+        versioning::create_wiki_page_version(
+            &mut *tx,
+            &id,
+            current_version + 1,
+            title,
+            content,
+            sections_snapshot.as_deref(),
+        )
+        .await?;
+    }
 
     let page = sqlx::query_as::<_, WikiPage>("SELECT * FROM wiki_pages WHERE id = ?1")
         .bind(&id)
-        .fetch_one(pool.get_ref())
+        .fetch_one(&mut *tx)
         .await?;
+
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(HttpResponse::Ok().json(page))
 }

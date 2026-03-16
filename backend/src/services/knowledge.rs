@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -67,7 +67,7 @@ fn is_cjk(c: char) -> bool {
 
 /// Ensure slug uniqueness by appending a suffix if needed.
 async fn ensure_unique_slug(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     base_slug: &str,
     exclude_id: Option<&str>,
 ) -> Result<String, AppError> {
@@ -81,7 +81,7 @@ async fn ensure_unique_slug(
             )
             .bind(&slug)
             .bind(eid)
-            .fetch_one(pool)
+            .fetch_one(&mut *conn)
             .await
             .map_err(AppError::from)?
         } else {
@@ -89,7 +89,7 @@ async fn ensure_unique_slug(
                 "SELECT COUNT(*) FROM knowledge_items WHERE slug = ?",
             )
             .bind(&slug)
-            .fetch_one(pool)
+            .fetch_one(&mut *conn)
             .await
             .map_err(AppError::from)?
         };
@@ -111,7 +111,7 @@ async fn ensure_unique_slug(
 
 /// Create a new knowledge item.
 pub async fn create_knowledge_item(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     title: &str,
     content: &str,
     slug: Option<&str>,
@@ -124,7 +124,7 @@ pub async fn create_knowledge_item(
         Some(s) if !s.is_empty() => s.to_string(),
         _ => generate_slug(title),
     };
-    let final_slug = ensure_unique_slug(pool, &base_slug, None).await?;
+    let final_slug = ensure_unique_slug(&mut *conn, &base_slug, None).await?;
 
     let tags_json = serde_json::to_string(&tags)
         .unwrap_or_else(|_| "[]".to_string());
@@ -138,25 +138,25 @@ pub async fn create_knowledge_item(
     .bind(content)
     .bind(&final_slug)
     .bind(&tags_json)
-    .execute(pool)
+    .execute(&mut *conn)
     .await
     .map_err(AppError::from)?;
 
     // Create initial version
-    versioning::create_knowledge_version(pool, &id, 1, title, content, source_wiki_page_id)
+    versioning::create_knowledge_version(&mut *conn, &id, 1, title, content, source_wiki_page_id)
         .await?;
 
-    get_knowledge_item(pool, &id).await
+    get_knowledge_item(&mut *conn, &id).await
 }
 
 /// Get a knowledge item by ID.
 pub async fn get_knowledge_item(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     id: &str,
 ) -> Result<KnowledgeItem, AppError> {
     sqlx::query_as::<_, KnowledgeItem>("SELECT * FROM knowledge_items WHERE id = ?")
         .bind(id)
-        .fetch_optional(pool)
+        .fetch_optional(&mut *conn)
         .await
         .map_err(AppError::from)?
         .ok_or_else(|| AppError::NotFound(format!("Knowledge item {} not found", id)))
@@ -164,10 +164,10 @@ pub async fn get_knowledge_item(
 
 /// Get a knowledge item with its wiki references.
 pub async fn get_knowledge_item_with_refs(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     id: &str,
 ) -> Result<KnowledgeItemWithRefs, AppError> {
-    let item = get_knowledge_item(pool, id).await?;
+    let item = get_knowledge_item(&mut *conn, id).await?;
 
     let wiki_refs = sqlx::query_as::<_, WikiReference>(
         "SELECT wp.id AS wiki_page_id, wp.title AS wiki_page_title, wp.slug AS wiki_page_slug
@@ -177,7 +177,7 @@ pub async fn get_knowledge_item_with_refs(
          GROUP BY wp.id",
     )
     .bind(id)
-    .fetch_all(pool)
+    .fetch_all(&mut *conn)
     .await
     .map_err(AppError::from)?;
 
@@ -185,7 +185,7 @@ pub async fn get_knowledge_item_with_refs(
         "SELECT experience_id FROM knowledge_experience_refs WHERE knowledge_item_id = ?",
     )
     .bind(id)
-    .fetch_all(pool)
+    .fetch_all(&mut *conn)
     .await
     .map_err(AppError::from)?;
 
@@ -265,7 +265,7 @@ pub async fn list_knowledge_items(
 
 /// Update a knowledge item. Returns the updated item.
 pub async fn update_knowledge_item(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     id: &str,
     title: Option<&str>,
     content: Option<&str>,
@@ -273,13 +273,13 @@ pub async fn update_knowledge_item(
     tags: Option<&[String]>,
     source_wiki_page_id: Option<&str>,
 ) -> Result<KnowledgeItem, AppError> {
-    let existing = get_knowledge_item(pool, id).await?;
+    let existing = get_knowledge_item(&mut *conn, id).await?;
 
     let new_title = title.unwrap_or(&existing.title);
     let new_content = content.unwrap_or(&existing.content);
 
     let new_slug = if let Some(s) = slug {
-        ensure_unique_slug(pool, s, Some(id)).await?
+        ensure_unique_slug(&mut *conn, s, Some(id)).await?
     } else {
         existing.slug.clone()
     };
@@ -310,13 +310,13 @@ pub async fn update_knowledge_item(
     .bind(&new_tags)
     .bind(new_version)
     .bind(id)
-    .execute(pool)
+    .execute(&mut *conn)
     .await
     .map_err(AppError::from)?;
 
     if content_changed {
         versioning::create_knowledge_version(
-            pool,
+            &mut *conn,
             id,
             new_version,
             new_title,
@@ -326,7 +326,7 @@ pub async fn update_knowledge_item(
         .await?;
     }
 
-    get_knowledge_item(pool, id).await
+    get_knowledge_item(&mut *conn, id).await
 }
 
 /// Delete a knowledge item.
@@ -349,14 +349,14 @@ pub async fn delete_knowledge_item(pool: &SqlitePool, id: &str) -> Result<(), Ap
 
 /// Find a knowledge item by title (case-insensitive exact match).
 pub async fn find_by_title(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     title: &str,
 ) -> Result<Option<KnowledgeItem>, AppError> {
     sqlx::query_as::<_, KnowledgeItem>(
         "SELECT * FROM knowledge_items WHERE LOWER(title) = LOWER(?)",
     )
     .bind(title)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *conn)
     .await
     .map_err(AppError::from)
 }
@@ -365,7 +365,7 @@ pub async fn find_by_title(
 
 /// Create a relation between two knowledge items.
 pub async fn create_relation(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     source_id: &str,
     target_id: &str,
     relation_type: &str,
@@ -380,8 +380,8 @@ pub async fn create_relation(
     }
 
     // Validate both items exist
-    get_knowledge_item(pool, source_id).await?;
-    get_knowledge_item(pool, target_id).await?;
+    get_knowledge_item(&mut *conn, source_id).await?;
+    get_knowledge_item(&mut *conn, target_id).await?;
 
     let id = Uuid::new_v4().to_string();
 
@@ -394,7 +394,7 @@ pub async fn create_relation(
     .bind(target_id)
     .bind(relation_type)
     .bind(sort_order)
-    .execute(pool)
+    .execute(&mut *conn)
     .await
     .map_err(AppError::from)?;
 
@@ -402,7 +402,7 @@ pub async fn create_relation(
         "SELECT * FROM knowledge_relations WHERE id = ?",
     )
     .bind(&id)
-    .fetch_one(pool)
+    .fetch_one(&mut *conn)
     .await
     .map_err(AppError::from)
 }
@@ -446,7 +446,7 @@ pub async fn delete_relation(pool: &SqlitePool, id: &str) -> Result<(), AppError
 
 /// Link a knowledge item to an experience.
 pub async fn link_experience(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     knowledge_item_id: &str,
     experience_id: &str,
 ) -> Result<(), AppError> {
@@ -456,7 +456,7 @@ pub async fn link_experience(
     )
     .bind(knowledge_item_id)
     .bind(experience_id)
-    .execute(pool)
+    .execute(&mut *conn)
     .await
     .map_err(AppError::from)?;
 

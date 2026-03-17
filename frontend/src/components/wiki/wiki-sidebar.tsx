@@ -6,6 +6,7 @@ import { PlusIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WikiNav } from "./wiki-nav";
 import { WikiDndProvider } from "./wiki-dnd-provider";
+import { WikiTreeProvider, useWikiTree } from "./wiki-tree-context";
 import type { WikiPageNested } from "@/lib/types";
 
 function filterTree(
@@ -27,7 +28,8 @@ function filterTree(
   return result;
 }
 
-export function WikiSidebar({ tree }: { tree: WikiPageNested[] }) {
+function SidebarContent() {
+  const { tree } = useWikiTree();
   const [query, setQuery] = useState("");
 
   const filteredTree = useMemo(() => filterTree(tree, query), [tree, query]);
@@ -63,7 +65,7 @@ export function WikiSidebar({ tree }: { tree: WikiPageNested[] }) {
       </div>
       <div className="flex-1 overflow-y-auto px-2">
         {filteredTree.length > 0 ? (
-          <WikiDndProvider tree={tree}>
+          <WikiDndProvider>
             <WikiNav tree={filteredTree} forceExpandAll={isSearching} />
           </WikiDndProvider>
         ) : (
@@ -73,5 +75,13 @@ export function WikiSidebar({ tree }: { tree: WikiPageNested[] }) {
         )}
       </div>
     </>
+  );
+}
+
+export function WikiSidebar({ tree }: { tree: WikiPageNested[] }) {
+  return (
+    <WikiTreeProvider serverTree={tree}>
+      <SidebarContent />
+    </WikiTreeProvider>
   );
 }

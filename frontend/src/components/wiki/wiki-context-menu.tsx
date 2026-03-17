@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { reorderWikiPage } from "@/lib/api";
+import { useWikiTree } from "./wiki-tree-context";
+import { applySwapInTree } from "./wiki-tree-helpers";
 import { WikiRenameDialog } from "./wiki-rename-dialog";
 import { WikiDeleteDialog } from "./wiki-delete-dialog";
 
@@ -61,6 +63,7 @@ export function WikiContextMenu({
   position,
 }: WikiContextMenuProps) {
   const router = useRouter();
+  const { applyReorder } = useWikiTree();
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -74,6 +77,20 @@ export function WikiContextMenu({
       const current = target.siblings[idx];
       const swap = target.siblings[swapIdx];
 
+      // Close menu first, then optimistic update
+      onOpenChange(false);
+
+      const rollback = applyReorder((prev) =>
+        applySwapInTree(
+          prev,
+          target.parentId,
+          current.id,
+          current.sort_order,
+          swap.id,
+          swap.sort_order
+        )
+      );
+
       try {
         await Promise.all([
           reorderWikiPage(current.id, {
@@ -86,12 +103,10 @@ export function WikiContextMenu({
           }),
         ]);
       } catch {
-        // Reorder failed — refresh to restore server state
+        rollback();
       }
-      onOpenChange(false);
-      router.refresh();
     },
-    [target, onOpenChange, router]
+    [target, onOpenChange, applyReorder]
   );
 
   const handleCopyLink = useCallback(async () => {

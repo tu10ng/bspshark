@@ -26,6 +26,8 @@ export interface WikiPageWithPath extends WikiPage {
   path: string;
   breadcrumbs: WikiPageBreadcrumb[];
   sections?: WikiPageSection[];
+  /** Markdown rebuilt from current sections/knowledge items. Use for editing. */
+  rebuilt_content?: string;
 }
 
 export interface Tool {
@@ -208,6 +210,18 @@ export interface WikiPageVersion {
   content: string;
   sections_snapshot?: string;
   created_at: string;
+}
+
+export interface IdentifySummary {
+  knowledge_created: number;
+  knowledge_updated: number;
+  experience_created: number;
+  experience_updated: number;
+  warnings: string[];
+}
+
+export interface WikiPageMutationResponse extends WikiPageWithPath {
+  identify_summary?: IdentifySummary;
 }
 
 export interface ExperienceVersion {

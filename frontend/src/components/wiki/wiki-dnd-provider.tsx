@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, createContext, useContext } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   DndContext,
@@ -14,6 +14,8 @@ import {
   type DragMoveEvent,
 } from "@dnd-kit/core";
 import { batchReorderWikiPages } from "@/lib/api";
+import { useWikiTree } from "./wiki-tree-context";
+import { applyReorderToTree } from "./wiki-tree-helpers";
 import type { WikiPageNested } from "@/lib/types";
 
 /** Flatten a wiki tree for quick ID lookup */
@@ -92,13 +94,13 @@ export interface DropIndicator {
 }
 
 interface WikiDndProviderProps {
-  tree: WikiPageNested[];
   children: React.ReactNode;
 }
 
-export function WikiDndProvider({ tree, children }: WikiDndProviderProps) {
+export function WikiDndProvider({ children }: WikiDndProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { tree, applyReorder } = useWikiTree();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(
     null
@@ -166,12 +168,7 @@ export function WikiDndProvider({ tree, children }: WikiDndProviderProps) {
         return;
       }
 
-      // Determine position using dual-axis + direction-aware detection:
-      // X-axis: "inside" only when Y is in middle 30% AND pointer is ≥24px right of target left edge
-      // Y-axis: direction-aware before/after split —
-      //   dragging down → splitY=0.3 (after triggers earlier)
-      //   dragging up   → splitY=0.7 (before triggers earlier)
-      //   stationary    → splitY=0.5 (50/50)
+      // Determine position using dual-axis + direction-aware detection
       const overRect = over.rect;
       const pointerY =
         (event.activatorEvent as MouseEvent).clientY + (event.delta?.y ?? 0);
@@ -194,17 +191,6 @@ export function WikiDndProvider({ tree, children }: WikiDndProviderProps) {
       if (prev?.targetId === overId && prev?.position === position) {
         return;
       }
-
-      console.log("[wiki-dnd]", {
-        overId,
-        pointerY,
-        overRectTop: overRect.top,
-        overRectHeight: overRect.height,
-        ratioY: ratioY.toFixed(3),
-        offsetX: offsetX.toFixed(1),
-        deltaY,
-        position,
-      });
 
       const indicator = { targetId: overId, position };
       dropIndicatorRef.current = indicator;
@@ -323,32 +309,35 @@ export function WikiDndProvider({ tree, children }: WikiDndProviderProps) {
         }
       }
 
+      // Optimistic update — apply immediately to the tree
+      const rollback = applyReorder((prev) =>
+        applyReorderToTree(prev, items, draggedId, newParentId)
+      );
+
+      // If the parent changed, update the URL for the dragged page
+      if (newParentId !== draggedEntry.parentId) {
+        const oldPath = "/wiki/" + getNodePath(draggedId, lookup);
+        if (pathname.startsWith(oldPath)) {
+          const newParentPath = newParentId
+            ? getNodePath(newParentId, lookup)
+            : "";
+          const newSlug = draggedEntry.node.slug;
+          const newPagePath = newParentPath
+            ? `${newParentPath}/${newSlug}`
+            : newSlug;
+          const suffix = pathname.slice(oldPath.length);
+          router.replace("/wiki/" + newPagePath + suffix);
+        }
+      }
+
       try {
         await batchReorderWikiPages(items);
-
-        // If the parent changed, update the URL for the dragged page (or its ancestors)
-        if (newParentId !== draggedEntry.parentId) {
-          const oldPath = "/wiki/" + getNodePath(draggedId, lookup);
-          if (pathname.startsWith(oldPath)) {
-            // Build the new path by computing where the node will live
-            const newParentPath = newParentId
-              ? getNodePath(newParentId, lookup)
-              : "";
-            const newSlug = draggedEntry.node.slug;
-            const newPagePath = newParentPath
-              ? `${newParentPath}/${newSlug}`
-              : newSlug;
-            const suffix = pathname.slice(oldPath.length); // child path if viewing descendant
-            router.replace("/wiki/" + newPagePath + suffix);
-          }
-        }
-        // Always refresh to re-fetch the wiki tree in layout
-        router.refresh();
       } catch (err) {
         console.error("Failed to reorder wiki pages:", err);
+        rollback();
       }
     },
-    [lookup, tree, router, pathname]
+    [lookup, tree, router, pathname, applyReorder]
   );
 
   const handleDragCancel = useCallback(() => {
@@ -380,8 +369,6 @@ export function WikiDndProvider({ tree, children }: WikiDndProviderProps) {
     </DndContext>
   );
 }
-
-import { createContext, useContext } from "react";
 
 interface WikiDndContextValue {
   activeId: string | null;

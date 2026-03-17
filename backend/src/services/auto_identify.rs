@@ -12,12 +12,19 @@ pub enum ParsedSection {
     /// A knowledge section identified by an H2 heading.
     Knowledge {
         title: String,
-        /// Content under the H2, excluding any [!EXPERIENCE] callouts.
-        content: String,
-        /// Experience callouts found within this section.
-        experiences: Vec<ParsedExperience>,
+        /// Ordered parts preserving the position of text and embedded experiences.
+        parts: Vec<KnowledgePart>,
     },
     /// A standalone experience callout not under an H2 heading.
+    Experience(ParsedExperience),
+}
+
+/// A part within a knowledge section, preserving insertion order.
+#[derive(Debug, Clone, PartialEq)]
+pub enum KnowledgePart {
+    /// A block of text content.
+    Text(String),
+    /// An embedded experience callout.
     Experience(ParsedExperience),
 }
 
@@ -26,6 +33,39 @@ pub enum ParsedSection {
 pub struct ParsedExperience {
     pub title: String,
     pub content: String,
+}
+
+impl ParsedSection {
+    /// Extract the concatenated text content from a Knowledge section (excluding experiences).
+    pub fn knowledge_text_content(&self) -> String {
+        match self {
+            ParsedSection::Knowledge { parts, .. } => {
+                let texts: Vec<&str> = parts
+                    .iter()
+                    .filter_map(|p| match p {
+                        KnowledgePart::Text(t) => Some(t.as_str()),
+                        KnowledgePart::Experience(_) => None,
+                    })
+                    .collect();
+                texts.join("\n\n")
+            }
+            _ => String::new(),
+        }
+    }
+
+    /// Extract all experiences from a Knowledge section, in order.
+    pub fn knowledge_experiences(&self) -> Vec<&ParsedExperience> {
+        match self {
+            ParsedSection::Knowledge { parts, .. } => parts
+                .iter()
+                .filter_map(|p| match p {
+                    KnowledgePart::Experience(e) => Some(e),
+                    KnowledgePart::Text(_) => None,
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
 }
 
 /// Parse raw Markdown into structured sections.
@@ -38,7 +78,8 @@ pub struct ParsedExperience {
 pub fn parse_markdown(markdown: &str) -> Vec<ParsedSection> {
     let mut sections: Vec<ParsedSection> = Vec::new();
     let mut current_freeform = String::new();
-    let mut current_knowledge: Option<(String, String, Vec<ParsedExperience>)> = None;
+    // (title, parts, current_text_buffer)
+    let mut current_knowledge: Option<(String, Vec<KnowledgePart>, String)> = None;
 
     let lines: Vec<&str> = markdown.lines().collect();
     let mut i = 0;
@@ -52,7 +93,7 @@ pub fn parse_markdown(markdown: &str) -> Vec<ParsedSection> {
             flush_freeform(&mut current_freeform, &mut sections);
             flush_knowledge(&mut current_knowledge, &mut sections);
 
-            current_knowledge = Some((title, String::new(), Vec::new()));
+            current_knowledge = Some((title, Vec::new(), String::new()));
             i += 1;
             continue;
         }
@@ -64,9 +105,15 @@ pub fn parse_markdown(markdown: &str) -> Vec<ParsedSection> {
                 content: exp_content,
             };
 
-            if let Some((_, _, ref mut exps)) = current_knowledge {
-                // Experience within a knowledge section
-                exps.push(exp);
+            if let Some((_, ref mut parts, ref mut text_buf)) = current_knowledge {
+                // Flush pending text buffer before the experience
+                let trimmed = text_buf.trim().to_string();
+                if !trimmed.is_empty() {
+                    parts.push(KnowledgePart::Text(trimmed));
+                }
+                text_buf.clear();
+                // Add experience in order
+                parts.push(KnowledgePart::Experience(exp));
             } else {
                 // Standalone experience (not under H2)
                 flush_freeform(&mut current_freeform, &mut sections);
@@ -82,12 +129,12 @@ pub fn parse_markdown(markdown: &str) -> Vec<ParsedSection> {
         }
 
         // Regular line
-        if let Some((_, ref mut content, _)) = current_knowledge {
-            if !content.is_empty() || !line.is_empty() {
-                if !content.is_empty() {
-                    content.push('\n');
+        if let Some((_, _, ref mut text_buf)) = current_knowledge {
+            if !text_buf.is_empty() || !line.is_empty() {
+                if !text_buf.is_empty() {
+                    text_buf.push('\n');
                 }
-                content.push_str(line);
+                text_buf.push_str(line);
             }
         } else {
             if !current_freeform.is_empty() || !line.is_empty() {
@@ -166,15 +213,16 @@ fn flush_freeform(freeform: &mut String, sections: &mut Vec<ParsedSection>) {
 }
 
 fn flush_knowledge(
-    knowledge: &mut Option<(String, String, Vec<ParsedExperience>)>,
+    knowledge: &mut Option<(String, Vec<KnowledgePart>, String)>,
     sections: &mut Vec<ParsedSection>,
 ) {
-    if let Some((title, content, experiences)) = knowledge.take() {
-        sections.push(ParsedSection::Knowledge {
-            title,
-            content: content.trim().to_string(),
-            experiences,
-        });
+    if let Some((title, mut parts, text_buf)) = knowledge.take() {
+        // Flush any remaining text buffer
+        let trimmed = text_buf.trim().to_string();
+        if !trimmed.is_empty() {
+            parts.push(KnowledgePart::Text(trimmed));
+        }
+        sections.push(ParsedSection::Knowledge { title, parts });
     }
 }
 
@@ -187,6 +235,16 @@ pub struct IdentifyResult {
     pub knowledge_items: Vec<KnowledgeItem>,
     /// Number of experiences created or updated.
     pub experience_count: usize,
+    /// Number of knowledge items created (new).
+    pub knowledge_created: usize,
+    /// Number of knowledge items updated (existing, content changed).
+    pub knowledge_updated: usize,
+    /// Number of experiences created (new).
+    pub experience_created: usize,
+    /// Number of experiences updated (existing, content changed).
+    pub experience_updated: usize,
+    /// Warnings generated during identification (e.g., duplicate titles).
+    pub warnings: Vec<String>,
 }
 
 /// A section ready to be stored in wiki_page_sections.
@@ -195,6 +253,10 @@ pub enum IdentifiedSection {
     Knowledge {
         knowledge_item_id: String,
         sort_order: i64,
+        /// JSON array describing the order of text/experience parts within this knowledge section.
+        /// Stored in freeform_content to preserve experience positions for round-trip.
+        /// Format: `[{"type":"text","content":"..."},{"type":"experience","id":"..."}]`
+        parts_layout: Option<String>,
     },
     Experience {
         experience_id: String,
@@ -206,6 +268,43 @@ pub enum IdentifiedSection {
     },
 }
 
+/// Merge duplicate H2 titles (case-insensitive) within the same page.
+/// Later sections with the same title have their parts appended to the first occurrence.
+fn merge_duplicate_h2(parsed: Vec<ParsedSection>) -> (Vec<ParsedSection>, Vec<String>) {
+    let mut result: Vec<ParsedSection> = Vec::new();
+    let mut warnings: Vec<String> = Vec::new();
+    // Map lowercase title → index in result
+    let mut title_index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+
+    for section in parsed {
+        match section {
+            ParsedSection::Knowledge { title, parts } => {
+                let key = title.to_lowercase();
+                if let Some(&idx) = title_index.get(&key) {
+                    // Duplicate! Merge parts into the first occurrence
+                    warnings.push(format!(
+                        "Duplicate H2 '{}' detected — content merged into first occurrence",
+                        title
+                    ));
+                    if let ParsedSection::Knowledge {
+                        parts: ref mut existing_parts,
+                        ..
+                    } = result[idx]
+                    {
+                        existing_parts.extend(parts);
+                    }
+                } else {
+                    title_index.insert(key, result.len());
+                    result.push(ParsedSection::Knowledge { title, parts });
+                }
+            }
+            other => result.push(other),
+        }
+    }
+
+    (result, warnings)
+}
+
 /// Process raw markdown: parse, match/create entities, return structured sections.
 /// Also cleans up stale knowledge-experience refs for knowledge items in this wiki page.
 pub async fn identify_and_create(
@@ -213,11 +312,16 @@ pub async fn identify_and_create(
     wiki_page_id: &str,
     markdown: &str,
 ) -> Result<IdentifyResult, AppError> {
-    let parsed = parse_markdown(markdown);
+    let raw_parsed = parse_markdown(markdown);
+    let (parsed, warnings) = merge_duplicate_h2(raw_parsed);
 
     let mut sections: Vec<IdentifiedSection> = Vec::new();
     let mut knowledge_items: Vec<KnowledgeItem> = Vec::new();
     let mut experience_count: usize = 0;
+    let mut knowledge_created: usize = 0;
+    let mut knowledge_updated: usize = 0;
+    let mut experience_created: usize = 0;
+    let mut experience_updated: usize = 0;
     let mut sort_order: i64 = 0;
     // Track (knowledge_item_id, experience_id) pairs created in this run
     let mut current_ke_pairs: Vec<(String, String)> = Vec::new();
@@ -233,33 +337,86 @@ pub async fn identify_and_create(
                 });
                 sort_order += 1;
             }
-            ParsedSection::Knowledge {
-                title,
-                content,
-                experiences,
-            } => {
+            ParsedSection::Knowledge { title, parts } => {
+                // Collect text content for the knowledge item (excluding experiences)
+                let text_content = parsed_section.knowledge_text_content();
+
                 // Match or create knowledge item
-                let ki = match_or_create_knowledge(&mut *conn, title, content, wiki_page_id).await?;
+                let match_result =
+                    match_or_create_knowledge(&mut *conn, title, &text_content, wiki_page_id)
+                        .await?;
+                let ki = match match_result {
+                    MatchResult::Created(ki) => {
+                        knowledge_created += 1;
+                        ki
+                    }
+                    MatchResult::Updated(ki) => {
+                        knowledge_updated += 1;
+                        ki
+                    }
+                    MatchResult::Unchanged(ki) => ki,
+                };
                 let ki_id = ki.id.clone();
                 knowledge_items.push(ki);
                 page_ki_ids.push(ki_id.clone());
 
+                // Process all parts to get experience IDs and build layout
+                let mut layout_entries: Vec<serde_json::Value> = Vec::new();
+                let mut exp_ids_in_order: Vec<String> = Vec::new();
+                let mut has_experiences = false;
+
+                for part in parts {
+                    match part {
+                        KnowledgePart::Text(text) => {
+                            layout_entries.push(serde_json::json!({
+                                "type": "text",
+                                "content": text
+                            }));
+                        }
+                        KnowledgePart::Experience(exp) => {
+                            has_experiences = true;
+                            let (exp_id, was_created) = match_or_create_experience(
+                                &mut *conn,
+                                &exp.title,
+                                &exp.content,
+                                wiki_page_id,
+                            )
+                            .await?;
+                            if was_created {
+                                experience_created += 1;
+                            } else {
+                                experience_updated += 1;
+                            }
+
+                            knowledge::link_experience(&mut *conn, &ki_id, &exp_id).await?;
+                            current_ke_pairs.push((ki_id.clone(), exp_id.clone()));
+
+                            layout_entries.push(serde_json::json!({
+                                "type": "experience",
+                                "id": exp_id
+                            }));
+                            exp_ids_in_order.push(exp_id);
+                        }
+                    }
+                }
+
+                // Only store parts_layout if there are interleaved experiences
+                let parts_layout = if has_experiences {
+                    serde_json::to_string(&layout_entries).ok()
+                } else {
+                    None
+                };
+
+                // Emit knowledge section first
                 sections.push(IdentifiedSection::Knowledge {
                     knowledge_item_id: ki_id.clone(),
                     sort_order,
+                    parts_layout,
                 });
                 sort_order += 1;
 
-                // Process embedded experiences
-                for exp in experiences {
-                    let exp_id =
-                        match_or_create_experience(&mut *conn, &exp.title, &exp.content, wiki_page_id)
-                            .await?;
-
-                    // Link experience to knowledge item
-                    knowledge::link_experience(&mut *conn, &ki_id, &exp_id).await?;
-                    current_ke_pairs.push((ki_id.clone(), exp_id.clone()));
-
+                // Then emit experience sections in order
+                for exp_id in exp_ids_in_order {
                     sections.push(IdentifiedSection::Experience {
                         experience_id: exp_id,
                         sort_order,
@@ -269,9 +426,14 @@ pub async fn identify_and_create(
                 }
             }
             ParsedSection::Experience(exp) => {
-                let exp_id =
+                let (exp_id, was_created) =
                     match_or_create_experience(&mut *conn, &exp.title, &exp.content, wiki_page_id)
                         .await?;
+                if was_created {
+                    experience_created += 1;
+                } else {
+                    experience_updated += 1;
+                }
 
                 sections.push(IdentifiedSection::Experience {
                     experience_id: exp_id,
@@ -335,21 +497,39 @@ pub async fn identify_and_create(
         sections,
         knowledge_items,
         experience_count,
+        knowledge_created,
+        knowledge_updated,
+        experience_created,
+        experience_updated,
+        warnings,
     })
+}
+
+/// Result of matching/creating a knowledge item.
+enum MatchResult<T> {
+    /// Found existing, no content change.
+    Unchanged(T),
+    /// Found existing, content was updated.
+    Updated(T),
+    /// Created new.
+    Created(T),
 }
 
 /// Match an existing knowledge item by title, or create a new one.
 /// If matched and content changed, updates and creates a new version.
+/// Uses scoped matching: prefers knowledge items already linked to this wiki page.
 async fn match_or_create_knowledge(
     conn: &mut SqliteConnection,
     title: &str,
     content: &str,
     wiki_page_id: &str,
-) -> Result<KnowledgeItem, AppError> {
-    if let Some(existing) = knowledge::find_by_title(&mut *conn, title).await? {
+) -> Result<MatchResult<KnowledgeItem>, AppError> {
+    if let Some(existing) =
+        knowledge::find_by_title_scoped(&mut *conn, title, wiki_page_id).await?
+    {
         // Check if content changed
         if existing.content != content || existing.title != title {
-            knowledge::update_knowledge_item(
+            let updated = knowledge::update_knowledge_item(
                 &mut *conn,
                 &existing.id,
                 Some(title),
@@ -358,30 +538,42 @@ async fn match_or_create_knowledge(
                 None,
                 Some(wiki_page_id),
             )
-            .await
+            .await?;
+            Ok(MatchResult::Updated(updated))
         } else {
-            Ok(existing)
+            Ok(MatchResult::Unchanged(existing))
         }
     } else {
-        knowledge::create_knowledge_item(&mut *conn, title, content, None, &[], Some(wiki_page_id))
-            .await
+        let created = knowledge::create_knowledge_item(
+            &mut *conn,
+            title,
+            content,
+            None,
+            &[],
+            Some(wiki_page_id),
+        )
+        .await?;
+        Ok(MatchResult::Created(created))
     }
 }
 
 /// Match an existing experience by title, or create a new one.
-/// Returns the experience ID.
+/// Returns (experience_id, was_created).
+/// Uses scoped matching: prefers experiences already linked to this wiki page.
 async fn match_or_create_experience(
     conn: &mut SqliteConnection,
     title: &str,
     content: &str,
     wiki_page_id: &str,
-) -> Result<String, AppError> {
-    if let Some(exp) = experience::find_by_title(&mut *conn, title).await? {
+) -> Result<(String, bool), AppError> {
+    if let Some(exp) = experience::find_by_title_scoped(&mut *conn, title, wiki_page_id).await? {
         experience::update_experience_content(&mut *conn, &exp, content, Some(wiki_page_id))
             .await?;
-        Ok(exp.id)
+        Ok((exp.id, false))
     } else {
-        experience::create_experience(&mut *conn, title, content, Some(wiki_page_id)).await
+        let id =
+            experience::create_experience(&mut *conn, title, content, Some(wiki_page_id)).await?;
+        Ok((id, true))
     }
 }
 
@@ -414,14 +606,13 @@ mod tests {
         let sections = parse_markdown(md);
         assert_eq!(sections.len(), 1);
         match &sections[0] {
-            ParsedSection::Knowledge {
-                title,
-                content,
-                experiences,
-            } => {
+            ParsedSection::Knowledge { title, parts } => {
                 assert_eq!(title, "My Knowledge");
-                assert_eq!(content, "Some content here.\n\nMore content.");
-                assert!(experiences.is_empty());
+                assert_eq!(parts.len(), 1);
+                assert_eq!(
+                    sections[0].knowledge_text_content(),
+                    "Some content here.\n\nMore content."
+                );
             }
             _ => panic!("Expected Knowledge section"),
         }
@@ -432,18 +623,14 @@ mod tests {
         let md = "## First\n\nContent 1.\n\n## Second\n\nContent 2.";
         let sections = parse_markdown(md);
         assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].knowledge_text_content(), "Content 1.");
+        assert_eq!(sections[1].knowledge_text_content(), "Content 2.");
         match &sections[0] {
-            ParsedSection::Knowledge { title, content, .. } => {
-                assert_eq!(title, "First");
-                assert_eq!(content, "Content 1.");
-            }
+            ParsedSection::Knowledge { title, .. } => assert_eq!(title, "First"),
             _ => panic!("Expected Knowledge section"),
         }
         match &sections[1] {
-            ParsedSection::Knowledge { title, content, .. } => {
-                assert_eq!(title, "Second");
-                assert_eq!(content, "Content 2.");
-            }
+            ParsedSection::Knowledge { title, .. } => assert_eq!(title, "Second"),
             _ => panic!("Expected Knowledge section"),
         }
     }
@@ -473,16 +660,30 @@ mod tests {
         let sections = parse_markdown(md);
         assert_eq!(sections.len(), 1);
         match &sections[0] {
-            ParsedSection::Knowledge {
-                title,
-                content,
-                experiences,
-            } => {
+            ParsedSection::Knowledge { title, parts } => {
                 assert_eq!(title, "Topic");
-                assert_eq!(content, "Some content.\n\nMore content after.");
-                assert_eq!(experiences.len(), 1);
-                assert_eq!(experiences[0].title, "Bug Found");
-                assert_eq!(experiences[0].content, "The bug was tricky.\nIt caused crashes.");
+                // Should have 3 parts: Text, Experience, Text (preserving position)
+                assert_eq!(parts.len(), 3);
+                match &parts[0] {
+                    KnowledgePart::Text(t) => assert_eq!(t, "Some content."),
+                    _ => panic!("Expected Text part"),
+                }
+                match &parts[1] {
+                    KnowledgePart::Experience(e) => {
+                        assert_eq!(e.title, "Bug Found");
+                        assert_eq!(e.content, "The bug was tricky.\nIt caused crashes.");
+                    }
+                    _ => panic!("Expected Experience part"),
+                }
+                match &parts[2] {
+                    KnowledgePart::Text(t) => assert_eq!(t, "More content after."),
+                    _ => panic!("Expected Text part"),
+                }
+                // Text content concatenation
+                assert_eq!(
+                    sections[0].knowledge_text_content(),
+                    "Some content.\n\nMore content after."
+                );
             }
             _ => panic!("Expected Knowledge section"),
         }
@@ -507,11 +708,12 @@ mod tests {
         let md = "## Main Topic\n\nIntro.\n\n### Sub Section\n\nSub content.\n\n### Another Sub\n\nMore.";
         let sections = parse_markdown(md);
         assert_eq!(sections.len(), 1);
+        let text = sections[0].knowledge_text_content();
         match &sections[0] {
-            ParsedSection::Knowledge { title, content, .. } => {
+            ParsedSection::Knowledge { title, .. } => {
                 assert_eq!(title, "Main Topic");
-                assert!(content.contains("### Sub Section"));
-                assert!(content.contains("### Another Sub"));
+                assert!(text.contains("### Sub Section"));
+                assert!(text.contains("### Another Sub"));
             }
             _ => panic!("Expected Knowledge section"),
         }
@@ -550,16 +752,16 @@ Network stuff."#;
             _ => panic!("Expected Freeform"),
         }
         match &sections[1] {
-            ParsedSection::Knowledge {
-                title,
-                content,
-                experiences,
-            } => {
+            ParsedSection::Knowledge { title, parts } => {
                 assert_eq!(title, "SATA 控制器");
-                assert!(content.contains("SATA controller"));
-                assert!(content.contains("### 详细配置"));
-                assert_eq!(experiences.len(), 1);
-                assert_eq!(experiences[0].title, "AHCI 模式问题");
+                let text = sections[1].knowledge_text_content();
+                assert!(text.contains("SATA controller"));
+                assert!(text.contains("### 详细配置"));
+                let exps = sections[1].knowledge_experiences();
+                assert_eq!(exps.len(), 1);
+                assert_eq!(exps[0].title, "AHCI 模式问题");
+                // Verify experience is between text parts
+                assert!(parts.len() >= 3); // text, experience, text
             }
             _ => panic!("Expected Knowledge"),
         }
@@ -585,6 +787,68 @@ Network stuff."#;
         assert_eq!(sections.len(), sections2.len());
         for (s1, s2) in sections.iter().zip(sections2.iter()) {
             assert_eq!(s1, s2);
+        }
+    }
+
+    #[test]
+    fn test_roundtrip_with_experience_position() {
+        let md = "## Topic\n\nBefore text.\n\n> [!EXPERIENCE] Bug\n> Description\n\nAfter text.";
+        let sections = parse_markdown(md);
+
+        // Rebuild markdown from sections
+        let rebuilt = super::super::wiki_compose::rebuild_markdown_from_parsed(&sections);
+
+        // Parse again
+        let sections2 = parse_markdown(&rebuilt);
+
+        assert_eq!(sections.len(), sections2.len());
+        for (s1, s2) in sections.iter().zip(sections2.iter()) {
+            assert_eq!(s1, s2);
+        }
+
+        // Verify experience is in the middle, not at the end
+        match &sections2[0] {
+            ParsedSection::Knowledge { parts, .. } => {
+                assert_eq!(parts.len(), 3);
+                assert!(matches!(&parts[0], KnowledgePart::Text(_)));
+                assert!(matches!(&parts[1], KnowledgePart::Experience(_)));
+                assert!(matches!(&parts[2], KnowledgePart::Text(_)));
+            }
+            _ => panic!("Expected Knowledge"),
+        }
+    }
+
+    #[test]
+    fn test_merge_duplicate_h2() {
+        let parsed = parse_markdown(
+            "## Install\n\nLinux steps.\n\n## Install\n\nWindows steps.",
+        );
+        // parse_markdown returns 2 separate sections
+        assert_eq!(parsed.len(), 2);
+
+        // merge_duplicate_h2 combines them
+        let (merged, warnings) = super::merge_duplicate_h2(parsed);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("Duplicate H2"));
+
+        let text = merged[0].knowledge_text_content();
+        assert!(text.contains("Linux steps."));
+        assert!(text.contains("Windows steps."));
+    }
+
+    #[test]
+    fn test_merge_duplicate_h2_case_insensitive() {
+        let parsed = parse_markdown(
+            "## Install\n\nLinux steps.\n\n## install\n\nWindows steps.",
+        );
+        let (merged, warnings) = super::merge_duplicate_h2(parsed);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(warnings.len(), 1);
+        // First title is preserved
+        match &merged[0] {
+            ParsedSection::Knowledge { title, .. } => assert_eq!(title, "Install"),
+            _ => panic!("Expected Knowledge"),
         }
     }
 }

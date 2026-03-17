@@ -361,6 +361,34 @@ pub async fn find_by_title(
     .map_err(AppError::from)
 }
 
+/// Find a knowledge item by title, preferring items already referenced by the given wiki page.
+/// First checks knowledge items linked to the page via wiki_page_sections, then falls back
+/// to global title match. This prevents cross-page accidental merges for common titles.
+pub async fn find_by_title_scoped(
+    conn: &mut SqliteConnection,
+    title: &str,
+    wiki_page_id: &str,
+) -> Result<Option<KnowledgeItem>, AppError> {
+    // First: try to find among knowledge items already on this wiki page
+    let scoped = sqlx::query_as::<_, KnowledgeItem>(
+        "SELECT ki.* FROM knowledge_items ki
+         JOIN wiki_page_sections wps ON wps.knowledge_item_id = ki.id
+         WHERE wps.wiki_page_id = ? AND LOWER(ki.title) = LOWER(?)",
+    )
+    .bind(wiki_page_id)
+    .bind(title)
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(AppError::from)?;
+
+    if scoped.is_some() {
+        return Ok(scoped);
+    }
+
+    // Fallback: global title match
+    find_by_title(&mut *conn, title).await
+}
+
 // ---- Knowledge Relations ----
 
 /// Create a relation between two knowledge items.

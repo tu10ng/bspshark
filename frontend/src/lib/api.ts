@@ -1,7 +1,7 @@
 import type {
   WikiPageNested,
   WikiPageWithPath,
-  WikiPage,
+  WikiPageMutationResponse,
   Tool,
   ToolExecution,
   DashboardStats,
@@ -71,7 +71,7 @@ export function createWikiPage(data: {
   title: string;
   slug: string;
   content?: string;
-}): Promise<WikiPage> {
+}): Promise<WikiPageMutationResponse> {
   return fetchApi("/api/v1/wiki/pages", {
     method: "POST",
     body: JSON.stringify(data),
@@ -81,7 +81,7 @@ export function createWikiPage(data: {
 export function updateWikiPage(
   id: string,
   data: { title?: string; slug?: string; content?: string }
-): Promise<WikiPage> {
+): Promise<WikiPageMutationResponse> {
   return fetchApi(`/api/v1/wiki/pages/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),

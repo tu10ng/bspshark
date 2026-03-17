@@ -8,6 +8,26 @@ use crate::services::{auto_identify, versioning, wiki_compose};
 
 use serde::Serialize;
 
+/// Summary of auto-identification results, included in create/update responses.
+#[derive(Debug, Serialize)]
+pub struct IdentifySummary {
+    pub knowledge_created: usize,
+    pub knowledge_updated: usize,
+    pub experience_created: usize,
+    pub experience_updated: usize,
+    pub warnings: Vec<String>,
+}
+
+/// Response for wiki page create/update operations.
+/// Includes the page with path/sections plus auto-identify summary.
+#[derive(Debug, Serialize)]
+pub struct WikiPageMutationResponse {
+    #[serde(flatten)]
+    pub page: WikiPageWithPath,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identify_summary: Option<IdentifySummary>,
+}
+
 const RESERVED_SLUGS: &[&str] = &["edit", "new"];
 
 fn validate_slug(slug: &str) -> Result<(), AppError> {
@@ -168,13 +188,19 @@ async fn get_wiki_page_by_path(
         .acquire()
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    let sections = Some(wiki_compose::load_sections(&mut conn, &page.id).await?);
+    let loaded_sections = wiki_compose::load_sections(&mut conn, &page.id).await?;
+    let rebuilt_content = if !loaded_sections.is_empty() {
+        Some(wiki_compose::rebuild_markdown(&loaded_sections))
+    } else {
+        None
+    };
 
     Ok(HttpResponse::Ok().json(WikiPageWithPath {
         page,
         path,
         breadcrumbs,
-        sections,
+        sections: Some(loaded_sections),
+        rebuilt_content,
     }))
 }
 
@@ -198,13 +224,19 @@ async fn get_wiki_page_by_id(
         .acquire()
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    let sections = Some(wiki_compose::load_sections(&mut conn, &page.id).await?);
+    let loaded_sections = wiki_compose::load_sections(&mut conn, &page.id).await?;
+    let rebuilt_content = if !loaded_sections.is_empty() {
+        Some(wiki_compose::rebuild_markdown(&loaded_sections))
+    } else {
+        None
+    };
 
     Ok(HttpResponse::Ok().json(WikiPageWithPath {
         page,
         path: url_path,
         breadcrumbs,
-        sections,
+        sections: Some(loaded_sections),
+        rebuilt_content,
     }))
 }
 
@@ -277,9 +309,17 @@ async fn create_wiki_page(
     .await?;
 
     // Run auto-identify if content is not empty
+    let mut identify_summary = None;
     if !content.is_empty() {
         let result = auto_identify::identify_and_create(&mut *tx, &id, content).await?;
         wiki_compose::save_sections(&mut *tx, &id, &result.sections).await?;
+        identify_summary = Some(IdentifySummary {
+            knowledge_created: result.knowledge_created,
+            knowledge_updated: result.knowledge_updated,
+            experience_created: result.experience_created,
+            experience_updated: result.experience_updated,
+            warnings: result.warnings,
+        });
     }
 
     // Create initial wiki page version
@@ -300,11 +340,31 @@ async fn create_wiki_page(
         .fetch_one(&mut *tx)
         .await?;
 
+    // Load sections within the transaction (data not yet visible to pool)
+    let loaded_sections = wiki_compose::load_sections(&mut *tx, &page.id).await?;
+    let rebuilt_content = if !loaded_sections.is_empty() {
+        Some(wiki_compose::rebuild_markdown(&loaded_sections))
+    } else {
+        None
+    };
+
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(HttpResponse::Created().json(page))
+    // Resolve path after commit so pool can see the data
+    let (path, breadcrumbs) = resolve_path(pool.get_ref(), &page.id).await?;
+
+    Ok(HttpResponse::Created().json(WikiPageMutationResponse {
+        page: WikiPageWithPath {
+            page,
+            path,
+            breadcrumbs,
+            sections: Some(loaded_sections),
+            rebuilt_content,
+        },
+        identify_summary,
+    }))
 }
 
 /// PUT /api/v1/wiki/pages/{id} — update page
@@ -366,10 +426,18 @@ async fn update_wiki_page(
     .await?;
 
     // Only run auto-identify and create new version when content actually changed
+    let mut identify_summary = None;
     if content_changed {
         let result =
             auto_identify::identify_and_create(&mut *tx, &id, content).await?;
         wiki_compose::save_sections(&mut *tx, &id, &result.sections).await?;
+        identify_summary = Some(IdentifySummary {
+            knowledge_created: result.knowledge_created,
+            knowledge_updated: result.knowledge_updated,
+            experience_created: result.experience_created,
+            experience_updated: result.experience_updated,
+            warnings: result.warnings,
+        });
 
         let current_version: i64 = sqlx::query_scalar(
             "SELECT COALESCE(MAX(version), 0) FROM wiki_page_versions WHERE wiki_page_id = ?",
@@ -398,11 +466,31 @@ async fn update_wiki_page(
         .fetch_one(&mut *tx)
         .await?;
 
+    // Load sections within the transaction
+    let loaded_sections = wiki_compose::load_sections(&mut *tx, &page.id).await?;
+    let rebuilt_content = if !loaded_sections.is_empty() {
+        Some(wiki_compose::rebuild_markdown(&loaded_sections))
+    } else {
+        None
+    };
+
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(HttpResponse::Ok().json(page))
+    // Resolve path after commit so pool can see the data
+    let (url_path, breadcrumbs) = resolve_path(pool.get_ref(), &page.id).await?;
+
+    Ok(HttpResponse::Ok().json(WikiPageMutationResponse {
+        page: WikiPageWithPath {
+            page,
+            path: url_path,
+            breadcrumbs,
+            sections: Some(loaded_sections),
+            rebuilt_content,
+        },
+        identify_summary,
+    }))
 }
 
 /// DELETE /api/v1/wiki/pages/{id} — delete page (cascade)

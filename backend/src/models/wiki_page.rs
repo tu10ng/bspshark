@@ -38,6 +38,10 @@ pub struct WikiPageWithPath {
     pub breadcrumbs: Vec<WikiPageBreadcrumb>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sections: Option<Vec<WikiPageSection>>,
+    /// Markdown rebuilt from current sections/knowledge items.
+    /// Use this for editing instead of `content` to avoid stale data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rebuilt_content: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

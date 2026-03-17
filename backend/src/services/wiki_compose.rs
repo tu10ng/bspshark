@@ -6,6 +6,21 @@ use crate::models::knowledge_item::KnowledgeItem;
 use crate::models::wiki_page_section::{WikiPageSection, WikiPageSectionJoinRow};
 use crate::services::auto_identify::ParsedSection;
 
+/// Add blockquote `> ` prefix to each line of content.
+pub fn quote_lines(content: &str) -> String {
+    content
+        .lines()
+        .map(|line| {
+            if line.is_empty() {
+                ">".to_string()
+            } else {
+                format!("> {}", line)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// Load sections for a wiki page and resolve their entities (knowledge items, experiences).
 /// Uses a single JOIN query instead of N+1 individual queries.
 pub async fn load_sections(
@@ -78,76 +93,126 @@ pub async fn load_sections(
 
 /// Rebuild Markdown from resolved sections (for editing).
 /// Nests experience sections within their preceding knowledge section.
+/// Uses `parts_layout` (stored in freeform_content of knowledge sections)
+/// to preserve the original interleaving of text and experiences.
 pub fn rebuild_markdown(sections: &[WikiPageSection]) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    let mut current_knowledge_parts: Option<Vec<String>> = None;
+    // Build experience ID → Experience map for parts_layout lookup
+    let exp_map: std::collections::HashMap<String, &Experience> = sections
+        .iter()
+        .filter_map(|s| s.experience.as_ref().map(|e| (e.id.clone(), e)))
+        .collect();
 
-    for section in sections {
+    let mut output_parts: Vec<String> = Vec::new();
+    let mut idx = 0;
+
+    while idx < sections.len() {
+        let section = &sections[idx];
         match section.section_type.as_str() {
             "knowledge" => {
-                // Flush previous knowledge section (with its nested experiences)
-                if let Some(ki_parts) = current_knowledge_parts.take() {
-                    parts.push(ki_parts.join("\n\n"));
-                }
                 if let Some(ref ki) = section.knowledge_item {
-                    current_knowledge_parts =
-                        Some(vec![format!("## {}\n\n{}", ki.title, ki.content)]);
+                    // Check if we have a parts_layout for proper interleaving
+                    if let Some(ref layout_json) = section.freeform_content {
+                        if let Ok(layout) =
+                            serde_json::from_str::<Vec<serde_json::Value>>(layout_json)
+                        {
+                            let mut section_parts = vec![format!("## {}", ki.title)];
+                            for entry in &layout {
+                                match entry.get("type").and_then(|t| t.as_str()) {
+                                    Some("text") => {
+                                        if let Some(text) =
+                                            entry.get("content").and_then(|c| c.as_str())
+                                        {
+                                            if !text.is_empty() {
+                                                section_parts.push(text.to_string());
+                                            }
+                                        }
+                                    }
+                                    Some("experience") => {
+                                        if let Some(exp_id) =
+                                            entry.get("id").and_then(|id| id.as_str())
+                                        {
+                                            if let Some(exp) = exp_map.get(exp_id) {
+                                                let content = exp
+                                                    .content
+                                                    .as_deref()
+                                                    .or(exp.description.as_deref())
+                                                    .unwrap_or("");
+                                                let quoted = quote_lines(content);
+                                                section_parts.push(format!(
+                                                    "> [!EXPERIENCE] {}\n{}",
+                                                    exp.title, quoted
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            output_parts.push(section_parts.join("\n\n"));
+                            idx += 1;
+                            // Skip following experience sections (already handled via layout)
+                            while idx < sections.len()
+                                && sections[idx].section_type == "experience"
+                            {
+                                idx += 1;
+                            }
+                            continue;
+                        }
+                    }
+                    // Fallback: no parts_layout, use legacy approach (content + appended experiences)
+                    let mut ki_parts = vec![format!("## {}\n\n{}", ki.title, ki.content)];
+                    idx += 1;
+                    // Collect following experience sections
+                    while idx < sections.len() && sections[idx].section_type == "experience" {
+                        if let Some(ref exp) = sections[idx].experience {
+                            let content = exp
+                                .content
+                                .as_deref()
+                                .or(exp.description.as_deref())
+                                .unwrap_or("");
+                            let quoted = quote_lines(content);
+                            ki_parts.push(format!("> [!EXPERIENCE] {}\n{}", exp.title, quoted));
+                        }
+                        idx += 1;
+                    }
+                    output_parts.push(ki_parts.join("\n\n"));
+                    continue;
                 }
+                idx += 1;
             }
             "experience" => {
+                // Standalone experience (not preceded by knowledge)
                 if let Some(ref exp) = section.experience {
-                    let title = &exp.title;
                     let content = exp
                         .content
                         .as_deref()
                         .or(exp.description.as_deref())
                         .unwrap_or("");
-                    let quoted = content
-                        .lines()
-                        .map(|line| {
-                            if line.is_empty() {
-                                ">".to_string()
-                            } else {
-                                format!("> {}", line)
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    let exp_block = format!("> [!EXPERIENCE] {}\n{}", title, quoted);
-
-                    if let Some(ref mut ki_parts) = current_knowledge_parts {
-                        // Nest within the current knowledge section
-                        ki_parts.push(exp_block);
-                    } else {
-                        // Standalone experience
-                        parts.push(exp_block);
-                    }
+                    let quoted = quote_lines(content);
+                    output_parts.push(format!("> [!EXPERIENCE] {}\n{}", exp.title, quoted));
                 }
+                idx += 1;
             }
             "freeform" => {
-                // Flush any pending knowledge section
-                if let Some(ki_parts) = current_knowledge_parts.take() {
-                    parts.push(ki_parts.join("\n\n"));
-                }
                 if let Some(ref content) = section.freeform_content {
-                    parts.push(content.clone());
+                    output_parts.push(content.clone());
                 }
+                idx += 1;
             }
-            _ => {}
+            _ => {
+                idx += 1;
+            }
         }
     }
 
-    // Flush final knowledge section
-    if let Some(ki_parts) = current_knowledge_parts.take() {
-        parts.push(ki_parts.join("\n\n"));
-    }
-
-    parts.join("\n\n")
+    output_parts.join("\n\n")
 }
 
 /// Rebuild Markdown from parsed sections (for round-trip testing).
 /// This is used by the auto_identify tests.
 pub fn rebuild_markdown_from_parsed(sections: &[ParsedSection]) -> String {
+    use crate::services::auto_identify::KnowledgePart;
+
     let mut parts: Vec<String> = Vec::new();
 
     for section in sections {
@@ -155,45 +220,25 @@ pub fn rebuild_markdown_from_parsed(sections: &[ParsedSection]) -> String {
             ParsedSection::Freeform { content } => {
                 parts.push(content.clone());
             }
-            ParsedSection::Knowledge {
-                title,
-                content,
-                experiences,
-            } => {
+            ParsedSection::Knowledge { title, parts: knowledge_parts } => {
                 let mut section_parts = vec![format!("## {}", title)];
-                if !content.is_empty() {
-                    section_parts.push(content.clone());
-                }
-                for exp in experiences {
-                    let quoted = exp
-                        .content
-                        .lines()
-                        .map(|line| {
-                            if line.is_empty() {
-                                ">".to_string()
-                            } else {
-                                format!("> {}", line)
+                for part in knowledge_parts {
+                    match part {
+                        KnowledgePart::Text(text) => {
+                            if !text.is_empty() {
+                                section_parts.push(text.clone());
                             }
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    section_parts.push(format!("> [!EXPERIENCE] {}\n{}", exp.title, quoted));
+                        }
+                        KnowledgePart::Experience(exp) => {
+                            let quoted = quote_lines(&exp.content);
+                            section_parts.push(format!("> [!EXPERIENCE] {}\n{}", exp.title, quoted));
+                        }
+                    }
                 }
                 parts.push(section_parts.join("\n\n"));
             }
             ParsedSection::Experience(exp) => {
-                let quoted = exp
-                    .content
-                    .lines()
-                    .map(|line| {
-                        if line.is_empty() {
-                            ">".to_string()
-                        } else {
-                            format!("> {}", line)
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
+                let quoted = quote_lines(&exp.content);
                 parts.push(format!("> [!EXPERIENCE] {}\n{}", exp.title, quoted));
             }
         }
@@ -223,14 +268,16 @@ pub async fn save_sections(
             crate::services::auto_identify::IdentifiedSection::Knowledge {
                 knowledge_item_id,
                 sort_order,
+                parts_layout,
             } => {
                 sqlx::query(
-                    "INSERT INTO wiki_page_sections (id, wiki_page_id, section_type, knowledge_item_id, sort_order)
-                     VALUES (?, ?, 'knowledge', ?, ?)",
+                    "INSERT INTO wiki_page_sections (id, wiki_page_id, section_type, knowledge_item_id, freeform_content, sort_order)
+                     VALUES (?, ?, 'knowledge', ?, ?, ?)",
                 )
                 .bind(&id)
                 .bind(wiki_page_id)
                 .bind(knowledge_item_id)
+                .bind(parts_layout)
                 .bind(sort_order)
                 .execute(&mut *conn)
                 .await

@@ -19,6 +19,32 @@ pub async fn find_by_title(
     .map_err(AppError::from)
 }
 
+/// Find an experience by title, preferring those already referenced by the given wiki page.
+pub async fn find_by_title_scoped(
+    conn: &mut SqliteConnection,
+    title: &str,
+    wiki_page_id: &str,
+) -> Result<Option<Experience>, AppError> {
+    // First: try to find among experiences already on this wiki page
+    let scoped = sqlx::query_as::<_, Experience>(
+        "SELECT e.* FROM experiences e
+         JOIN wiki_page_sections wps ON wps.experience_id = e.id
+         WHERE wps.wiki_page_id = ? AND LOWER(e.title) = LOWER(?)",
+    )
+    .bind(wiki_page_id)
+    .bind(title)
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(AppError::from)?;
+
+    if scoped.is_some() {
+        return Ok(scoped);
+    }
+
+    // Fallback: global title match
+    find_by_title(&mut *conn, title).await
+}
+
 /// Create a new experience with initial version.
 pub async fn create_experience(
     conn: &mut SqliteConnection,

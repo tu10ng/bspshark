@@ -32,7 +32,7 @@ export default async function WikiEditPage({
         id: page.id,
         title: page.title,
         slug: page.slug,
-        content: page.content,
+        content: page.rebuilt_content ?? page.content,
       }}
       parentId={page.parent_id ?? undefined}
       onSave={handleSave}

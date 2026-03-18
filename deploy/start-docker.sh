@@ -2,7 +2,7 @@
 set -euo pipefail
 mkdir -p /app/data
 
-DATABASE_URL="${DATABASE_URL:-sqlite:///app/data/bspshark.db}" \
+DATABASE_URL="${DATABASE_URL:-sqlite://data/bspshark.db}" \
   BACKEND_PORT="${BACKEND_PORT:-8080}" \
   FRONTEND_URL="${FRONTEND_URL:-http://localhost:3000}" \
   ./backend &

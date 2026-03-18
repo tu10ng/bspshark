@@ -1,4 +1,4 @@
-.PHONY: dev dev-frontend dev-backend build build-frontend build-backend test test-frontend test-backend lint lint-frontend lint-backend db-migrate dist
+.PHONY: dev dev-frontend dev-backend build build-frontend build-backend test test-frontend test-backend lint lint-frontend lint-backend db-migrate dist docker-build docker-save docker-load docker-up docker-down docker-logs
 
 # Development
 dev:
@@ -59,3 +59,25 @@ dist: build-frontend
 	chmod +x $(DIST_DIR)/start.sh $(DIST_DIR)/stop.sh $(DIST_DIR)/update.sh
 	@echo "Dist ready at $(DIST_DIR)/"
 	@echo "Run: cd $(DIST_DIR) && cp .env.example .env && ./start.sh"
+
+# Docker
+DOCKER_IMAGE := bspshark
+
+docker-build:
+	docker build -t $(DOCKER_IMAGE):latest .
+
+docker-save: docker-build
+	docker save $(DOCKER_IMAGE):latest | gzip > $(DOCKER_IMAGE).tar.gz
+	@ls -lh $(DOCKER_IMAGE).tar.gz
+
+docker-load:
+	docker load < $(DOCKER_IMAGE).tar.gz
+
+docker-up:
+	docker compose -f docker-compose.prod.yml up -d
+
+docker-down:
+	docker compose -f docker-compose.prod.yml down
+
+docker-logs:
+	docker compose -f docker-compose.prod.yml logs -f

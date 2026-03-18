@@ -1,0 +1,7 @@
+.git
+node_modules
+dist
+backend/target
+backend/bspshark.db
+deploy
+.github

@@ -74,6 +74,17 @@ jobs:
 
           tar -czf bspshark-linux-x64.tar.gz $DIST/
 
+      # Build Docker image from dist (lightweight, no re-compilation)
+      - name: Build Docker image
+        run: |
+          cp deploy/start-docker.sh bspshark/start.sh
+          chmod +x bspshark/start.sh
+          docker build -t bspshark:latest -f deploy/Dockerfile.release bspshark/
+
+      - name: Save Docker image
+        run: |
+          docker save bspshark:latest | gzip > bspshark-docker-x64.tar.gz
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -81,5 +92,7 @@ jobs:
           TAG="v$(date -u +%Y.%m.%d)-${GITHUB_SHA::7}"
           gh release create "$TAG" \
             bspshark-linux-x64.tar.gz \
+            bspshark-docker-x64.tar.gz \
+            docker-compose.prod.yml \
             --title "$TAG" \
             --notes "Build from [\`${GITHUB_SHA::7}\`](${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA})"

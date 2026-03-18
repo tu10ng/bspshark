@@ -1,0 +1,8 @@
+FROM debian:bookworm-slim
+WORKDIR /app
+COPY . .
+# 让 bundled node 可被 start.sh 中的 `node` 命令找到
+ENV PATH="/app:${PATH}"
+RUN chmod +x backend node start.sh stop.sh
+EXPOSE 3000 8080
+CMD ["./start.sh"]

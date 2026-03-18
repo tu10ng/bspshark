@@ -20,6 +20,7 @@ import type {
   KnowledgeRelation,
   WikiPageVersion,
   ExperienceVersion,
+  WikiPage,
 } from "./types";
 
 const BASE_URL =

@@ -121,3 +121,4 @@ src/
 ## 注意事项
 
 - URL 驱动的搜索组件避免在 useEffect 中直接依赖 searchParams（会导致无限循环），用 useRef 存最新值
+- **`next dev` 不做类型检查**：SWC 只做快速编译，缺失 import 等类型错误在本地开发时不会报错，但 `next build`（CI 的 `pnpm build`）会做完整 TypeScript 类型检查并失败。修改 `lib/api.ts`、`lib/types.ts` 等类型文件后务必运行 `cd frontend && pnpm build` 验证

@@ -13,13 +13,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Rust backend
+      # Rust backend (musl static linking for glibc compat)
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - name: Install musl-tools
+        run: sudo apt-get install -y musl-tools
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: backend
       - name: Build backend
-        run: cd backend && cargo build -j 6 --release
+        run: cd backend && cargo build -j 6 --release --target x86_64-unknown-linux-musl
 
       # Node.js frontend
       - uses: actions/setup-node@v4
@@ -48,8 +52,8 @@ jobs:
           rm -rf $DIST
           mkdir -p $DIST/frontend $DIST/migrations $DIST/data $DIST/logs $DIST/pids
 
-          # Backend binary
-          cp backend/target/release/backend $DIST/
+          # Backend binary (statically linked)
+          cp backend/target/x86_64-unknown-linux-musl/release/backend $DIST/
 
           # Node.js binary
           cp /tmp/node-portable/node $DIST/node

@@ -45,10 +45,11 @@ db-migrate:
 # Dist packaging (local build)
 DIST_DIR := dist/bspshark
 
-dist: build
+dist: build-frontend
+	cd backend && cargo build -j 6 --release --target x86_64-unknown-linux-musl
 	rm -rf dist
 	mkdir -p $(DIST_DIR)/frontend $(DIST_DIR)/migrations $(DIST_DIR)/data $(DIST_DIR)/logs $(DIST_DIR)/pids
-	cp backend/target/release/backend $(DIST_DIR)/
+	cp backend/target/x86_64-unknown-linux-musl/release/backend $(DIST_DIR)/
 	cp -r frontend/.next/standalone/. $(DIST_DIR)/frontend/
 	cp -r frontend/.next/static $(DIST_DIR)/frontend/.next/static
 	cp -r frontend/public $(DIST_DIR)/frontend/public
